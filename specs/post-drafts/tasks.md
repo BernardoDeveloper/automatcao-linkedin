@@ -2,8 +2,8 @@
 
 ## 1 · Queue
 
-- [ ] 1.1 (Unit) Parse draft frontmatter and the post body — R1.2
-- [ ] 1.2 (Unit) Wire `linkedin fila` with the check on `rascunho` and `aprovado` drafts — R4.1, R4.2, R4.3
+- [x] 1.1 (Unit) Parse draft frontmatter and the post body — R1.2
+- [x] 1.2 (Unit) Wire `linkedin fila` with the check on `rascunho` and `aprovado` drafts — R4.1, R4.2, R4.3
   _Depends 1.1_
 
 ## 2 · Skills
