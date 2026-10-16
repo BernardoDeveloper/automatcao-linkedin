@@ -1,0 +1,9 @@
+config.toml
+dossies/
+.estado/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.codegraph/
