@@ -30,12 +30,16 @@ def checar(args: argparse.Namespace, config: config_module.Config) -> int:
 
 def fila(args: argparse.Namespace, config: config_module.Config) -> int:
     queue = drafts.queue(config)
+    print(f"pasta: {config.drafts_dir}")
     if not queue:
-        print(f"nenhum rascunho em {config.drafts_dir}")
+        print("nenhum rascunho")
         return 0
     blocked = False
     for status in (*drafts.STATUSES, ""):
-        group = [d for d in queue if d.status == status]
+        group = sorted(
+            (d for d in queue if d.status == status),
+            key=lambda d: str(d.meta.get("publicar_em") or "9999"),
+        )
         if not group:
             continue
         print(f"\n{status or 'sem status'} ({len(group)})")

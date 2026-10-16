@@ -2,7 +2,7 @@
 autonomy: auto
 ci: wait
 status: approved
-checksum: 018e7e9b2ddbfdb3524ccd994207ad687d52e45e4e2e061400eba95bc7bf5a66
+checksum: edb861bd384ec9982210e92e1315b219251806061c92b8d4a0248da0e1c53389
 ---
 
 # LinkedIn content on AI
@@ -54,10 +54,10 @@ written from the material that already exists.
 
 ### 2 · Rollout
 
-- [ ] 2.1 (Unit) Add the systemd user timer that runs the weekly drafts skill headless
+- [x] 2.1 (Unit) Add the systemd user timer that runs the weekly drafts skill headless
   _Depends 1.2_
-- [ ] 2.2 (Unit) Register the project and the LinkedIn folder in the second brain
-- [ ] 2.3 (Unit) Write the first batch of drafts from the material already in the second brain and the dev projects
+- [x] 2.2 (Unit) Register the project and the LinkedIn folder in the second brain
+- [x] 2.3 (Unit) Write the first batch of drafts from the material already in the second brain and the dev projects
   _Depends 2.2_
 
 ## Done when

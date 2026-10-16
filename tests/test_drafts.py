@@ -49,4 +49,6 @@ def test_fila_exits_2_when_an_approved_draft_fails(make_config, capsys):
 
 def test_fila_without_drafts_folder(make_config, capsys):
     assert cli.main(["fila"], config=make_config()) == 0
-    assert "nenhum rascunho" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert out.startswith(f"pasta: {make_config().drafts_dir}\n")
+    assert "nenhum rascunho" in out
