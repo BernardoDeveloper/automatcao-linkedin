@@ -14,7 +14,7 @@ hunting for an issue key.
 
 ## R1 · Findings
 
-- **R1.1** When `linkedin checar` runs on drafts, the CLI shall report each line of a post body containing a Jira-style issue key such as `DJURPFS-1234`.
+- **R1.1** When `linkedin checar` runs on drafts, the CLI shall report each line of a post body containing a Jira-style issue key such as `PROJ-1234`.
 - **R1.2** When `linkedin checar` runs on drafts, the CLI shall report each line of a post body containing a Protheus source file name ending in `.prw`, `.prx`, `.tlpp`, `.aph` or `.ch`.
 - **R1.3** When `linkedin checar` runs on drafts, the CLI shall report each line of a post body containing an email address or an IPv4 address.
 - **R1.4** When `linkedin checar` runs on drafts, the CLI shall report each line of a post body containing a URL whose host is, or is under, a configured internal domain.

@@ -51,7 +51,7 @@ uv run linkedin checar "<rascunho>"
 
 Exit 2 é um achado: reescreva o trecho do `## Post` sem a informação (troque o caso pela
 técnica) e rode de novo, até exit 0. Nunca contorne um achado trocando o formato do texto
-(ex.: "DJURPFS – 1234").
+(ex.: "PROJ – 1234").
 
 ## 5. Avisar
 
