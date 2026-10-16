@@ -5,7 +5,7 @@ and post them myself — nothing here publishes (docs/adr/0001-drafts-only-no-li
 
 ```
 second brain · ai-memory · git · Claude Code sessions
-        └── linkedin coletar ──> dossies/AAAA-MM-DD.md
+        └── linkedin coletar ──> dossies/AAAA-MM-DD-HHMMSS.md
                 └── /linkedin-rascunhos (claude -p) ──> second-brain/02-Areas/Carreira/LinkedIn/Posts/
                         └── linkedin checar ──> I review, post, set status: publicado
 ```

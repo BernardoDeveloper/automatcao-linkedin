@@ -31,4 +31,7 @@ dominios_internos = []
 # Customer names, internal system names: whole word, case and accents ignored.
 termos_proibidos = []
 # Uppercase-dash-number strings that are not issue keys.
-permitidos = ["GPT-4", "GPT-5", "ISO-8601", "UTF-8", "COVID-19"]
+permitidos = [
+  "GPT-3", "GPT-4", "GPT-5", "ISO-8601", "ISO-9001", "UTF-8", "SHA-256", "COVID-19",
+  "RFC-2119", "H-264",
+]

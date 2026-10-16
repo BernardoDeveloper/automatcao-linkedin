@@ -4,7 +4,7 @@ One canonical term per concept, and the synonyms nobody should use for it.
 
 - **source** — one place activity is read from: the second brain, ai-memory, git repositories, Claude Code sessions.
 - **window** — the period one run collects from: since the last successful run, or `--desde`.
-- **digest** — the Markdown file `dossies/AAAA-MM-DD.md` holding one run's AI-related items, grouped by source. Avoid: dossier, report
+- **digest** — the Markdown file `dossies/AAAA-MM-DD-HHMMSS.md` holding one run's AI-related items, one file per run, grouped by source. Avoid: dossier, report
 - **draft** — one post file in the drafts folder of the second brain, whatever its status. Avoid: post file
 - **post body** — the `## Post` section of a draft; the exact text pasted into LinkedIn.
 - **status** — a draft's place in its life: `ideia`, `rascunho`, `aprovado`, `publicado`.

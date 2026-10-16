@@ -130,10 +130,13 @@ def git(config: Config, since: datetime) -> list[Item]:
 
 
 def _project_name(directory: str) -> str:
-    """Claude Code names a session folder after its cwd: `-home-eu-dev-agente` is `agente`."""
-    home = str(Path.home()).replace("/", "-")
-    name = directory.removeprefix(home).lstrip("-")
-    return name.removeprefix("dev-") or "~"
+    """Claude Code names a session folder after its cwd, every non-alphanumeric as `-`."""
+    home = re.sub(r"[^A-Za-z0-9]", "-", str(Path.home()))
+    if directory == home:
+        return "~"
+    if directory.startswith(home + "-"):
+        return directory.removeprefix(home + "-").removeprefix("dev-")
+    return directory
 
 
 def _prompt(line: str, since: datetime, keywords: re.Pattern[str], origin: str) -> Item | None:

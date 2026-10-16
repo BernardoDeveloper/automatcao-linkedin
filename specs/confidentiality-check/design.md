@@ -24,9 +24,10 @@ time: `unicodedata.normalize("NFKD", c)` with combining marks dropped, kept only
 that leaves exactly one character. Folding is length-preserving, so a match span in the
 folded line is the same span in the original, and the reported text is the original.
 
-The issue-key pattern is case-insensitive and tolerates a spaced hyphen. It also matches
-harmless strings such as `GPT-5`, `ISO-9001` or `top-10`, and that is accepted: a false
-positive costs a rewrite, a miss costs a leak. Configured `permitidos` (allowed terms) are
+Issue keys are three patterns (R1.1). Uppercase tolerates reformatting; lowercase needs a
+plain hyphen and three digits, because "top-10", "Etapa - 1" and "llama-3" are ordinary
+prose in an AI post and every false positive costs the model a rewrite. Uppercase strings
+such as `GPT-5` or `ISO-9001` still match, and that is accepted: a miss costs a leak. Configured `permitidos` (allowed terms) are
 masked, ignoring case, before the issue-key rule runs, so model names can be whitelisted
 in config rather than in the draft.
 

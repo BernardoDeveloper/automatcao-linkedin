@@ -12,3 +12,5 @@
   _Reason security and code review findings_
 - [x] 2.2 (Unit) Warn on stderr when forbidden terms or internal domains are empty — R2.3
   _Reason security review finding_
+- [x] 2.3 (TDD) Keep ordinary prose clean: narrower any-case keys, spaced allowed terms, credential assignments with a digit — R1.1, R1.5, R1.9
+  _Reason re-review finding_

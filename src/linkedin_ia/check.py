@@ -15,8 +15,13 @@ DASHES = re.compile("[\u2010-\u2015\u2212\ufe58\ufe63\uff0d]")
 OBFUSCATED_DOT = re.compile(r"\[\.\]|\(\.\)")
 TERM_SEPARATOR = r"[\s_-]+"
 
-ISSUE = re.compile(r"(?<![\w-])[A-Za-z][A-Za-z0-9]{1,9}\s?-\s?\d{1,6}(?!\w)")
-ISSUE_SPACED = re.compile(r"\b[A-Z][A-Z0-9]{2,9} \d{2,6}\b")
+# Uppercase keys tolerate a spaced hyphen or a space; any-case keys need a plain hyphen and
+# 3+ digits, so prose like "top-10", "Etapa - 1" or "llama-3" stays clean.
+ISSUE_PATTERNS = (
+    re.compile(r"(?<![\w-])[A-Z][A-Z0-9]{1,9}\s?-\s?\d{1,6}(?!\w)"),
+    re.compile(r"(?<![\w-])[A-Za-z]{2}[A-Za-z0-9]{0,8}-\d{3,6}(?!\w)"),
+    re.compile(r"\b[A-Z][A-Z0-9]{2,9} \d{4,6}\b"),
+)
 SOURCE_FILE = re.compile(r"\b[\w-]+\.(?:prw|prx|tlpp|aph|ch)\b|\bU_\w+", re.IGNORECASE)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
@@ -26,7 +31,8 @@ CREDENTIAL = re.compile(
     r"|[sr]k_(?:live|test)_[0-9A-Za-z]{16,}|eyJ[\w-]{10,}\.[\w-]{10,}\.[\w-]+)"
     r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
     r"|hooks\.slack\.com/services/\S+"
-    r"|(?i:\b(?:password|passwd|senha|secret|token|api[_-]?key)\s*[:=]\s*\S+)"
+    r"|(?i:\b(?:password|passwd|senha|secret|token|api[_-]?key)\s*[:=]\s*[\"']?"
+    r"(?=[^\s\"']*\d)[^\s\"']{6,})"
 )
 
 
@@ -71,8 +77,11 @@ def fold(text: str) -> str:
 
 
 def _mask(text: str, terms: tuple[str, ...]) -> str:
+    """Blank out allowed terms, matching `ISO-8601` as `iso 8601` or `ISO - 8601` too."""
     for term in terms:
-        text = re.sub(re.escape(term), lambda m: " " * len(m.group(0)), text, flags=re.IGNORECASE)
+        parts = [re.escape(p) for p in re.split(r"[\s-]+", term) if p]
+        pattern = r"\s?-?\s?".join(parts)
+        text = re.sub(pattern, lambda m: " " * len(m.group(0)), text, flags=re.IGNORECASE)
     return text
 
 
@@ -88,9 +97,9 @@ def _term(term: str) -> re.Pattern[str]:
 
 def _matches(text: str, config: Config) -> Iterator[tuple[int, int, str]]:
     masked = _mask(text, config.allowed_terms)
-    for pattern in (ISSUE, ISSUE_SPACED):
-        for match in pattern.finditer(masked):
-            yield match.start(), match.end(), "issue"
+    issues = {m.span() for pattern in ISSUE_PATTERNS for m in pattern.finditer(masked)}
+    for start, end in sorted(issues):
+        yield start, end, "issue"
     for rule, pattern in (("fonte", SOURCE_FILE), ("email", EMAIL), ("ip", IPV4)):
         for match in pattern.finditer(text):
             yield match.start(), match.end(), rule

@@ -23,3 +23,5 @@
   _Reason code review finding_
 - [x] 3.2 (Unit) Count mentions in the body only, read transcripts defensively in local time, match the author email literally — R1.3, R1.4, R1.5
   _Reason code review finding_
+- [x] 3.3 (Unit) Resolve the session folder name from the home path the way Claude Code writes it — R1.4
+  _Reason re-review finding_

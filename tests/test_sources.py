@@ -1,7 +1,10 @@
 import json
 import os
 import subprocess
+import time
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from linkedin_ia import sources
 
@@ -161,14 +164,30 @@ def test_session_origin_is_the_project_folder(make_config, tmp_path, monkeypatch
     session(tmp_path / "claude/-home-maria-silva/s.jsonl", prompt("Claude, ajuda"))
     session(tmp_path / "claude/-home-maria-silva-dev-x/s.jsonl", prompt("IA aqui"))
     session(tmp_path / "claude/-home-maria-silva-Documents-sb/s.jsonl", prompt("IA ali"))
+    session(tmp_path / "claude/-home-maria-silvana-dev-y/s.jsonl", prompt("IA lá"))
 
-    assert origins(sources.claude_sessions(cfg, SINCE)) == ["Documents-sb", "x", "~"]
+    assert origins(sources.claude_sessions(cfg, SINCE)) == [
+        "-home-maria-silvana-dev-y",
+        "Documents-sb",
+        "x",
+        "~",
+    ]
 
 
-def test_session_dates_are_local_time(make_config, tmp_path):
+@pytest.fixture
+def sao_paulo(monkeypatch):
+    monkeypatch.setenv("TZ", "America/Sao_Paulo")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+def test_session_dates_are_local_time(make_config, tmp_path, sao_paulo):
     cfg = make_config()
     utc = datetime.now(UTC)
     session(tmp_path / "claude/p/s.jsonl", prompt("Claude", when=utc))
 
-    (item,) = sources.claude_sessions(cfg, SINCE)
-    assert item.date.utcoffset() == NOW.utcoffset()
+    (item,) = sources.claude_sessions(cfg, utc - timedelta(days=1))
+    assert item.date.utcoffset() == timedelta(hours=-3)
+    assert item.date == utc
