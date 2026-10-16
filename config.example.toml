@@ -1,0 +1,37 @@
+# Copy to config.toml (gitignored) and adjust. Paths accept ~.
+
+[fontes]
+second_brain = "~/Documents/second-brain"
+ai_memory = "~/.local/share/ai-memory/wiki"
+claude_sessoes = "~/.claude/projects"
+# Every git repository directly under each of these is read.
+repositorios = ["~/dev"]
+email_autor = "voce@exemplo.com"
+
+[coleta]
+dias_padrao = 14
+max_itens = 30
+tamanho_trecho = 400
+# A note or ai-memory page needs this many AI keyword occurrences; a prompt needs one.
+min_mencoes = 2
+palavras_chave = [
+  "ia", "ai", "inteligência artificial", "llm", "llms", "claude", "anthropic", "gpt",
+  "openai", "codex", "gemini", "ollama", "qwen", "langchain", "rag", "mcp", "agente",
+  "agentes", "agent", "agents", "subagente", "prompt", "prompts", "skill", "skills",
+  "embedding", "embeddings", "chroma", "vetorial", "copilot", "machine learning",
+]
+
+[rascunhos]
+# Relative to second_brain.
+pasta = "02-Areas/Carreira/LinkedIn/Posts"
+
+[confidencialidade]
+# URLs under these hosts never go into a post.
+dominios_internos = []
+# Customer names, internal system names: whole word, case and accents ignored.
+termos_proibidos = []
+# Uppercase-dash-number strings that are not issue keys.
+permitidos = [
+  "GPT-3", "GPT-4", "GPT-5", "ISO-8601", "ISO-9001", "UTF-8", "SHA-256", "COVID-19",
+  "RFC-2119", "H-264",
+]
