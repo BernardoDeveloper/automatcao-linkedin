@@ -180,3 +180,16 @@ def test_user_functions_and_obfuscated_ips_are_reported(tmp_path, make_config):
 def test_every_post_section_is_checked(tmp_path, make_config):
     path = draft(tmp_path, "limpo\n\n## Post\n\nsegunda versão com PROJ-1")
     assert [r for _, r, _ in rules(check.check(path, make_config()))] == ["issue"]
+
+
+def test_ordinary_prose_is_not_a_finding(tmp_path, make_config):
+    import dataclasses
+
+    cfg = dataclasses.replace(make_config(), allowed_terms=("ISO-8601",))
+    path = draft(
+        tmp_path,
+        "top-10 ferramentas, Etapa - 1, Fase-2, passo - 2, Claude-3, llama-3, react-19\n"
+        "datas em ISO 8601 e ISO-8601, de 2025 - 2026\n"
+        "Token: o menor pedaço de texto; a senha: forte e longa",
+    )
+    assert rules(check.check(path, cfg)) == []
