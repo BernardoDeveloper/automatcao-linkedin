@@ -10,14 +10,23 @@ from linkedin_ia.config import Config
 
 MAX_LENGTH = 3000
 
-ISSUE = re.compile(r"\b[A-Z][A-Z0-9]{1,9}-\d{1,6}\b")
-SOURCE_FILE = re.compile(r"\b[\w-]+\.(?:prw|prx|tlpp|aph|ch)\b", re.IGNORECASE)
+ZERO_WIDTH = re.compile("[\u00ad\u200b-\u200d\u2060\ufeff]")
+DASHES = re.compile("[\u2010-\u2015\u2212\ufe58\ufe63\uff0d]")
+OBFUSCATED_DOT = re.compile(r"\[\.\]|\(\.\)")
+TERM_SEPARATOR = r"[\s_-]+"
+
+ISSUE = re.compile(r"(?<![\w-])[A-Za-z][A-Za-z0-9]{1,9}\s?-\s?\d{1,6}(?!\w)")
+ISSUE_SPACED = re.compile(r"\b[A-Z][A-Z0-9]{2,9} \d{2,6}\b")
+SOURCE_FILE = re.compile(r"\b[\w-]+\.(?:prw|prx|tlpp|aph|ch)\b|\bU_\w+", re.IGNORECASE)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
-URL = re.compile(r"https?://([^/\s:?#]+)\S*")
 CREDENTIAL = re.compile(
     r"\b(?:sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}"
-    r"|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[A-Z0-9]{16})"
+    r"|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[A-Z0-9]{16}|AIza[0-9A-Za-z_-]{30,}"
+    r"|[sr]k_(?:live|test)_[0-9A-Za-z]{16,}|eyJ[\w-]{10,}\.[\w-]{10,}\.[\w-]+)"
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"|hooks\.slack\.com/services/\S+"
+    r"|(?i:\b(?:password|passwd|senha|secret|token|api[_-]?key)\s*[:=]\s*\S+)"
 )
 
 
@@ -29,9 +38,10 @@ class Finding:
     text: str
 
 
-def post_body(text: str) -> tuple[int, list[str]] | None:
-    """The `## Post` section: the number of its first line, and its lines."""
+def post_bodies(text: str) -> list[tuple[int, list[str]]]:
+    """Every `## Post` section: the number of its first line, and its lines."""
     lines = text.splitlines()
+    sections = []
     for index, line in enumerate(lines):
         if line.strip() == "## Post":
             body = []
@@ -39,8 +49,14 @@ def post_body(text: str) -> tuple[int, list[str]] | None:
                 if following.startswith("## "):
                     break
                 body.append(following)
-            return index + 2, body
-    return None
+            sections.append((index + 2, body))
+    return sections
+
+
+def normalize(line: str) -> str:
+    """Undo the reformatting that hides a pattern: zero-width characters, dash variants, [.]"""
+    line = unicodedata.normalize("NFKC", ZERO_WIDTH.sub("", line))
+    return OBFUSCATED_DOT.sub(".", DASHES.sub("-", line))
 
 
 def fold(text: str) -> str:
@@ -54,41 +70,74 @@ def fold(text: str) -> str:
     return "".join(folded)
 
 
-def _mask(line: str, terms: tuple[str, ...]) -> str:
+def _mask(text: str, terms: tuple[str, ...]) -> str:
     for term in terms:
-        line = line.replace(term, " " * len(term))
-    return line
+        text = re.sub(re.escape(term), lambda m: " " * len(m.group(0)), text, flags=re.IGNORECASE)
+    return text
 
 
-def _line_findings(line: str, config: Config) -> Iterator[tuple[str, str]]:
-    for match in ISSUE.finditer(_mask(line, config.allowed_terms)):
-        yield "issue", match.group(0)
+def _domain(domain: str) -> re.Pattern[str]:
+    host = re.escape(domain.strip(".").lower())
+    return re.compile(rf"(?<![\w.-])(?:[\w-]+\.)*{host}(?![\w-]|\.[\w-])", re.IGNORECASE)
+
+
+def _term(term: str) -> re.Pattern[str]:
+    words = [re.escape(w) + "s?" for w in fold(term).split()]
+    return re.compile(rf"\b{TERM_SEPARATOR.join(words)}\b", re.IGNORECASE)
+
+
+def _matches(text: str, config: Config) -> Iterator[tuple[int, int, str]]:
+    masked = _mask(text, config.allowed_terms)
+    for pattern in (ISSUE, ISSUE_SPACED):
+        for match in pattern.finditer(masked):
+            yield match.start(), match.end(), "issue"
     for rule, pattern in (("fonte", SOURCE_FILE), ("email", EMAIL), ("ip", IPV4)):
-        for match in pattern.finditer(line):
-            yield rule, match.group(0)
-    for match in URL.finditer(line):
-        host = match.group(1).lower()
-        if any(host == d or host.endswith("." + d) for d in config.internal_domains):
-            yield "dominio-interno", match.group(0)
-    for match in CREDENTIAL.finditer(line):
-        yield "credencial", match.group(0)
-    folded = fold(line)
+        for match in pattern.finditer(text):
+            yield match.start(), match.end(), rule
+    for domain in config.internal_domains:
+        for match in _domain(domain).finditer(text):
+            yield match.start(), match.end(), "dominio-interno"
+    for match in CREDENTIAL.finditer(text):
+        yield match.start(), match.end(), "credencial"
+    folded = fold(text)
     for term in config.forbidden_terms:
-        for match in re.finditer(rf"\b{re.escape(fold(term))}\b", folded, re.IGNORECASE):
-            yield "termo-proibido", line[match.start() : match.end()]
+        for match in _term(term).finditer(folded):
+            yield match.start(), match.end(), "termo-proibido"
+
+
+def _section_findings(
+    path: Path, first: int, lines: list[str], config: Config
+) -> Iterator[Finding]:
+    normalized = [normalize(line) for line in lines]
+    for offset, line in enumerate(normalized):
+        for start, end, rule in _matches(line, config):
+            yield Finding(path, first + offset, rule, line[start:end])
+        if offset + 1 < len(normalized):
+            # A pattern split across a line break: report only matches that cross it.
+            joined = f"{line} {normalized[offset + 1]}"
+            for start, end, rule in _matches(joined, config):
+                if start < len(line) and end > len(line) + 1:
+                    yield Finding(path, first + offset, rule, joined[start:end])
+    length = len("\n".join(lines).strip())
+    if length > MAX_LENGTH:
+        yield Finding(path, first - 1, "tamanho", f"{length} caracteres")
 
 
 def check(path: Path, config: Config) -> list[Finding]:
-    section = post_body(path.read_text(encoding="utf-8"))
-    if section is None:
+    sections = post_bodies(path.read_text(encoding="utf-8"))
+    if not sections:
         return [Finding(path, 1, "formato", "sem seção ## Post")]
-    first, lines = section
-    findings = [
-        Finding(path, first + offset, rule, text)
-        for offset, line in enumerate(lines)
-        for rule, text in _line_findings(line, config)
-    ]
-    length = len("\n".join(lines).strip())
-    if length > MAX_LENGTH:
-        findings.append(Finding(path, first - 1, "tamanho", f"{length} caracteres"))
-    return findings
+    findings: list[Finding] = []
+    for first, lines in sections:
+        findings += _section_findings(path, first, lines, config)
+    return sorted(findings, key=lambda f: f.line)
+
+
+def disabled_rules(config: Config) -> list[str]:
+    """Rules that cannot fire because their list in config.toml is empty."""
+    empty = []
+    if not config.forbidden_terms:
+        empty.append("termos_proibidos")
+    if not config.internal_domains:
+        empty.append("dominios_internos")
+    return empty

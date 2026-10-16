@@ -61,7 +61,7 @@ def render(collection: Collection, config: Config) -> str:
     for name, items in collection.items.items():
         lines += ["", f"## {TITLES[name]} ({len(items)})", ""]
         for item in items:
-            lines.append(f"- {item.date:%Y-%m-%d} · `{item.origin}`")
+            lines.append(f"- {item.date:%Y-%m-%d} · `{_excerpt(item.origin, 200)}`")
             lines.append(f"  > {_excerpt(item.text, config.excerpt_length)}")
     if collection.skipped:
         lines += ["", "## Pulado", ""]
@@ -71,6 +71,6 @@ def render(collection: Collection, config: Config) -> str:
 
 def write(collection: Collection, config: Config) -> Path:
     config.digest_dir.mkdir(parents=True, exist_ok=True)
-    path = config.digest_dir / f"{collection.until:%Y-%m-%d}.md"
+    path = config.digest_dir / f"{collection.until:%Y-%m-%d-%H%M%S}.md"
     path.write_text(render(collection, config), encoding="utf-8")
     return path

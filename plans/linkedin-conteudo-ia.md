@@ -2,7 +2,7 @@
 autonomy: auto
 ci: wait
 status: approved
-checksum: edb861bd384ec9982210e92e1315b219251806061c92b8d4a0248da0e1c53389
+checksum: ed5cdd17506a71d9828062d7e3f2b555e33e5c9aa171bc7f31bccd606c4a8621
 ---
 
 # LinkedIn content on AI
@@ -59,6 +59,9 @@ written from the material that already exists.
 - [x] 2.2 (Unit) Register the project and the LinkedIn folder in the second brain
 - [x] 2.3 (Unit) Write the first batch of drafts from the material already in the second brain and the dev projects
   _Depends 2.2_
+- [x] 2.4 (Unit) Scope the weekly run's tools with dontAsk, add a timeout, refuse unsafe
+      paths
+  _Reason security review finding_
 
 ## Done when
 

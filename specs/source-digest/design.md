@@ -17,7 +17,8 @@ source as skipped (R1.6).
 
 - Second brain and ai-memory: walk `*.md`, filter by `mtime`, then by keyword over the
   file text. The excerpt is the title line plus the start of the body, frontmatter cut.
-- Git: `git log --since=<iso> --author=<email> --format=%cI%x09%s` per repository
+- Git: `git log --since=<iso> "--author=<email>" --format=%cI%x09%s` per repository,
+  the email escaped and wrapped in angle brackets so it matches only itself
   found one level under each root. No keyword filter: a commit subject rarely names the
   technology, and the repository name gives the model the context.
 - Claude sessions: each `*.jsonl` under `~/.claude/projects/` whose `mtime` is in the
@@ -32,7 +33,9 @@ what keeps every `claude.ai` link from counting. Notes need `min_mencoes` occurr
 
 `src/linkedin_ia/digest.py` renders the Markdown and `src/linkedin_ia/state.py` reads and
 writes `.estado/ultima-coleta` (an ISO timestamp). The state is written only after the
-digest file is, so a failed run repeats its window (R2.4).
+digest file is, so a failed run repeats its window (R2.4). Each run gets its own file
+(R3.1): a rerun the same day starts where the first one ended, so overwriting the
+first digest would lose its items for good.
 
 ## Data
 

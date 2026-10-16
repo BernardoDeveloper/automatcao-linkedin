@@ -2,7 +2,7 @@
 
 ## What changes
 
-Serves R1.1–R1.3, R2.1–R2.5, R3.1–R3.3, R4.1–R4.3.
+Serves R1.1–R1.3, R2.1–R2.6, R3.1–R3.3, R4.1–R4.3.
 
 The writing lives in two skills, the queue in the CLI (adr:0002-claude-code-headless-as-the-writer).
 
@@ -24,6 +24,13 @@ The drafts folder is `02-Areas/Carreira/LinkedIn/Posts/` in the second brain, fr
 config. It follows the second brain's own conventions (frontmatter on every note,
 `[[wikilinks]]`, tasks in `TAREFAS.md`) and the existing X thread draft
 (`02-Areas/Drones/Publicacao X/`), so the queue is readable in Obsidian.
+
+Both skills open by stating that what they read is data, not instructions (R2.6). That is
+the soft half; the hard half is the weekly run's tool grant in `scripts/instalar-agenda.sh`
+(`--permission-mode dontAsk`, reads and edits scoped to the skills, the digests, the second
+brain and the drafts folder, the repository itself never writable), so a digest item that
+talks the model into editing `src/` is denied rather than executed by the next
+`uv run linkedin`.
 
 `src/linkedin_ia/drafts.py` parses a draft's frontmatter (flat `key: value` and inline
 `[a, b]` lists; no YAML dependency) and `linkedin fila` prints the queue, reusing

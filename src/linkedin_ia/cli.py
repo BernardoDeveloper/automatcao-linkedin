@@ -18,7 +18,13 @@ def coletar(args: argparse.Namespace, config: config_module.Config) -> int:
     return 0
 
 
+def _warn_disabled(config: config_module.Config) -> None:
+    for name in check.disabled_rules(config):
+        print(f"aviso: {name} vazio em config.toml — essa regra não roda", file=sys.stderr)
+
+
 def checar(args: argparse.Namespace, config: config_module.Config) -> int:
+    _warn_disabled(config)
     findings = [f for path in args.arquivos for f in check.check(path, config)]
     for f in findings:
         print(f"{f.path}:{f.line}: {f.rule}: {f.text}")
@@ -29,27 +35,28 @@ def checar(args: argparse.Namespace, config: config_module.Config) -> int:
 
 
 def fila(args: argparse.Namespace, config: config_module.Config) -> int:
+    _warn_disabled(config)
     queue = drafts.queue(config)
+    print(f"second brain: {config.second_brain}")
     print(f"pasta: {config.drafts_dir}")
     if not queue:
         print("nenhum rascunho")
         return 0
     blocked = False
-    for status in (*drafts.STATUSES, ""):
+    for status in (*drafts.STATUSES, drafts.OTHER):
         group = sorted(
-            (d for d in queue if d.status == status),
+            (d for d in queue if d.group == status),
             key=lambda d: str(d.meta.get("publicar_em") or "9999"),
         )
         if not group:
             continue
-        print(f"\n{status or 'sem status'} ({len(group)})")
+        print(f"\n{status} ({len(group)})")
         for draft in group:
-            mark = ""
-            if status in drafts.CHECKED:
-                findings = check.check(draft.path, config)
-                if findings:
-                    mark = f'  ✗ {len(findings)} achado(s) — linkedin checar "{draft.path}"'
-                    blocked = blocked or status == "aprovado"
+            mark = f"  [{draft.status or 'sem status'}]" if status == drafts.OTHER else ""
+            findings = check.check(draft.path, config)
+            if findings:
+                mark += f'  ✗ {len(findings)} achado(s) — linkedin checar "{draft.path}"'
+                blocked = blocked or status == "aprovado"
             when = draft.meta.get("publicar_em") or "sem data"
             print(f"  {when}  {draft.title}{mark}")
     return 2 if blocked else 0

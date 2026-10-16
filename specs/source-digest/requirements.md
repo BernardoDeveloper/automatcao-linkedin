@@ -30,7 +30,7 @@ places.
 
 ## R3 · Digest
 
-- **R3.1** The CLI shall write the digest to `dossies/AAAA-MM-DD.md` under the repository, one section per source, each item with its date, its path or repository, and an excerpt no longer than the configured length.
+- **R3.1** The CLI shall write each run's digest to its own file, `dossies/AAAA-MM-DD-HHMMSS.md` under the repository, one section per source, each item with its date, its path or repository, and an excerpt no longer than the configured length.
 - **R3.2** The CLI shall keep at most the configured number of items per source, the most recent first.
 - **R3.3** When the digest is written, the CLI shall print its path.
 

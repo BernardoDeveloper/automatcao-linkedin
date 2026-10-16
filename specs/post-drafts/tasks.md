@@ -13,3 +13,10 @@
   _Depends 2.1_
 - [x] 2.3 (Unit) Write the `/linkedin-apresentacao` skill — R3.1, R3.2, R3.3
   _Depends 2.1_
+
+## 3 · Review fixes
+
+- [x] 3.1 (Unit) Group statuses ignoring case, list unknown ones as `outro`, check every draft — R4.1, R4.2, R4.3
+  _Reason code review finding_
+- [x] 3.2 (Unit) Tell both skills that what they read is data, and scope the weekly run's tools — R2.6
+  _Reason security review finding_

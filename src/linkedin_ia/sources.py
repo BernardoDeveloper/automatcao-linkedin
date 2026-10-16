@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from linkedin_ia.config import Config
+from linkedin_ia.drafts import strip_frontmatter
 
 NOTE_EXCLUDED_DIRS = (".obsidian", "_templates", ".git", ".trash")
 
@@ -38,14 +39,6 @@ def _mtime(path: Path, since: datetime) -> datetime | None:
     return modified if modified >= since else None
 
 
-def _strip_frontmatter(text: str) -> str:
-    if text.startswith("---\n"):
-        end = text.find("\n---", 4)
-        if end != -1:
-            return text[end + 4 :].lstrip("\n")
-    return text
-
-
 def _markdown(
     source: str,
     root: Path,
@@ -68,8 +61,8 @@ def _markdown(
         modified = _mtime(path, since)
         if modified is None:
             continue
-        body = _strip_frontmatter(path.read_text(encoding="utf-8", errors="replace"))
-        if mentions(keywords, f"{relative}\n{body}") >= minimum:
+        body = strip_frontmatter(path.read_text(encoding="utf-8", errors="replace"))
+        if mentions(keywords, body) >= minimum:
             items.append(Item(source, modified, str(relative), body))
     return items
 
@@ -107,6 +100,11 @@ def _repositories(roots: Iterable[Path]) -> list[Path]:
     )
 
 
+def _literal(text: str) -> str:
+    """Escape for git's basic regex, so `.` in an email matches only a dot."""
+    return re.sub(r"([.*\[\]^$\\])", r"\\\1", text)
+
+
 def git(config: Config, since: datetime) -> list[Item]:
     items = []
     for repo in _repositories(config.repo_roots):
@@ -118,7 +116,7 @@ def git(config: Config, since: datetime) -> list[Item]:
                 "log",
                 "--all",
                 f"--since={since.isoformat()}",
-                f"--author={config.author_email}",
+                f"--author=<{_literal(config.author_email)}>",
                 "--format=%cI%x09%s",
             ],
             capture_output=True,
@@ -133,8 +131,34 @@ def git(config: Config, since: datetime) -> list[Item]:
 
 def _project_name(directory: str) -> str:
     """Claude Code names a session folder after its cwd: `-home-eu-dev-agente` is `agente`."""
-    name = re.sub(r"^-home-[^-]+-?", "", directory)
+    home = str(Path.home()).replace("/", "-")
+    name = directory.removeprefix(home).lstrip("-")
     return name.removeprefix("dev-") or "~"
+
+
+def _prompt(line: str, since: datetime, keywords: re.Pattern[str], origin: str) -> Item | None:
+    """A prompt the user typed, or None for anything else on a transcript line."""
+    try:
+        entry = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(entry, dict) or entry.get("type") != "user":
+        return None
+    if entry.get("isMeta") or entry.get("isCompactSummary"):
+        return None
+    message = entry.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str) or content.lstrip().startswith("<"):
+        return None
+    try:
+        date = datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00"))
+    except (KeyError, ValueError):
+        return None
+    if date.tzinfo is None:
+        date = date.astimezone()
+    if date < since or mentions(keywords, content) < 1:
+        return None
+    return Item("claude", date.astimezone(), origin, content)
 
 
 def claude_sessions(config: Config, since: datetime) -> list[Item]:
@@ -144,20 +168,7 @@ def claude_sessions(config: Config, since: datetime) -> list[Item]:
         if _mtime(path, since) is None:
             continue
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            try:
-                entry = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if entry.get("type") != "user":
-                continue
-            content = (entry.get("message") or {}).get("content")
-            if not isinstance(content, str) or content.lstrip().startswith("<"):
-                continue
-            stamp = entry.get("timestamp")
-            if not stamp:
-                continue
-            date = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
-            if date < since or mentions(keywords, content) < 1:
-                continue
-            items.append(Item("claude", date, _project_name(path.parent.name), content))
+            item = _prompt(line, since, keywords, _project_name(path.parent.name))
+            if item is not None:
+                items.append(item)
     return items

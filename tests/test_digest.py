@@ -13,13 +13,28 @@ def test_digest_names_missing_sources_and_still_writes(make_config, tmp_path, ca
 
     assert cli.main(["coletar"], config=cfg) == 0
 
-    path = tmp_path / "dossies" / f"{NOW:%Y-%m-%d}.md"
+    (path,) = (tmp_path / "dossies").glob(f"{NOW:%Y-%m-%d}-*.md")
     assert capsys.readouterr().out.strip() == str(path)
     text = path.read_text()
     assert "## Second brain (1)" in text
     assert "`Nota.md`" in text
     assert f"- ai-memory: `{tmp_path / 'aim'}` não existe" in text
     assert "- git: " in text and "- claude: " in text
+
+
+def test_a_second_run_on_the_same_day_keeps_the_first_digest(make_config, tmp_path, capsys):
+    cfg = make_config()
+    first = digest.Collection(NOW, NOW.replace(hour=9, minute=0, second=0))
+    second = digest.Collection(NOW, NOW.replace(hour=9, minute=0, second=1))
+    assert digest.write(first, cfg) != digest.write(second, cfg)
+    assert len(list((tmp_path / "dossies").iterdir())) == 2
+
+
+def test_origins_cannot_break_the_digest_layout(make_config):
+    cfg = make_config()
+    item = Item("git", NOW, "repo\n## Falso", "texto")
+    text = digest.render(digest.Collection(NOW, NOW, {"git": [item]}), cfg)
+    assert "\n## Falso" not in text
 
 
 def test_a_successful_run_is_recorded(make_config):

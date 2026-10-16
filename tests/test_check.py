@@ -104,10 +104,10 @@ def test_issue_keys_survive_reformatting(tmp_path, make_config):
     path = draft(
         tmp_path,
         "minúscula proj-1234\n"
-        "travessão PROJ – 1234\n"
-        "hífen inseparável PROJ‑1234\n"
+        "travessão PROJ \u2013 1234\n"
+        "hífen inseparável PROJ\u20111234\n"
         "espaço PROJ 1234\n"
-        "zero-width PR​OJ-1234\n"
+        "zero-width PR\u200bOJ-1234\n"
         "quebrada PROJ-\n"
         "1234 no meio",
     )

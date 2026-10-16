@@ -18,8 +18,37 @@ fi
 
 CLAUDE="$(command -v claude)" || { echo "claude não está no PATH" >&2; exit 1; }
 UV="$(command -v uv)" || { echo "uv não está no PATH" >&2; exit 1; }
-SECOND_BRAIN="$(cd "$REPO" && "$UV" run --quiet python -c \
-  'from linkedin_ia import config; print(config.load().second_brain)')"
+read -r SECOND_BRAIN DRAFTS < <(cd "$REPO" && "$UV" run --quiet python -c \
+  'from linkedin_ia import config; c = config.load(); print(c.second_brain, c.drafts_dir)')
+
+for path in "$REPO" "$SECOND_BRAIN" "$DRAFTS" "$CLAUDE" "$UV"; do
+  if [[ "$path" =~ [[:space:]%\$\"\\] ]]; then
+    echo "caminho com espaço ou caractere especial não suportado: $path" >&2
+    exit 1
+  fi
+done
+
+# The headless agent reads untrusted text (the digest), so it gets only what the job needs:
+# read the repo's skills and digests, the second brain and READMEs; write drafts and
+# TAREFAS.md; run three CLI commands. dontAsk denies everything else, and the repo itself
+# (the code `uv run linkedin` executes) is never writable.
+ALLOWED=(
+  "Bash(uv run linkedin coletar)"
+  "Bash(uv run linkedin fila)"
+  "Bash(uv run linkedin checar:*)"
+  "Read(/$REPO/.claude/skills/**)"
+  "Read(/$REPO/dossies/**)"
+  "Read(/$SECOND_BRAIN/**)"
+  "Read(~/dev/*/README*)"
+  "Edit(/$DRAFTS/**)"
+  "Edit(/$SECOND_BRAIN/TAREFAS.md)"
+)
+DENIED=(
+  "Edit(/$REPO/**)"
+  "Edit(/$SECOND_BRAIN/.obsidian/**)"
+  "Read(/$SECOND_BRAIN/.obsidian/**)"
+)
+quote() { printf '"%s" ' "$@"; }
 
 mkdir -p "$UNITS"
 cat > "$UNITS/$NAME.service" <<UNIT
@@ -28,9 +57,10 @@ Description=Rascunhos semanais do LinkedIn (claude -p /linkedin-rascunhos)
 
 [Service]
 Type=oneshot
+TimeoutStartSec=30min
 WorkingDirectory=$REPO
-Environment=PATH=$(dirname "$UV"):$(dirname "$CLAUDE"):/usr/local/bin:/usr/bin:/bin
-ExecStart=$CLAUDE -p /linkedin-rascunhos --add-dir "$SECOND_BRAIN" --permission-mode acceptEdits --allowedTools "Bash(uv run linkedin:*)" Read Write Edit Glob Grep
+Environment="PATH=$(dirname "$UV"):$(dirname "$CLAUDE"):/usr/local/bin:/usr/bin:/bin"
+ExecStart=$CLAUDE -p /linkedin-rascunhos --add-dir $SECOND_BRAIN --permission-mode dontAsk --allowedTools $(quote "${ALLOWED[@]}")--disallowedTools $(quote "${DENIED[@]}")
 ExecStartPost=-/usr/bin/notify-send "LinkedIn" "Rascunhos da semana prontos no second brain"
 UNIT
 

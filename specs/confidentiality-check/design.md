@@ -2,23 +2,38 @@
 
 ## What changes
 
-Serves R1.1–R1.10, R2.1, R2.2.
+Serves R1.1–R1.12, R2.1–R2.3.
 
-`src/linkedin_ia/check.py`: `post_body(text) -> (start_line, body) | None` extracts the
-`## Post` section (up to the next `## ` heading), and `check(path, config) ->
-list[Finding]` runs each rule over it line by line. A rule is a name plus a compiled
-pattern; forbidden terms and internal domains are compiled from config at call time.
+`src/linkedin_ia/check.py`: `post_bodies(text)` extracts every `## Post` section (each up
+to the next `## ` heading), and `check(path, config) -> list[Finding]` runs each rule over
+them line by line. A rule is a name plus a compiled pattern; forbidden terms and internal
+domains are compiled from config at call time.
+
+Every line is normalized first (R1.11), so findings report the normalized text. A pattern
+split by a line break is found by matching each line joined to the next with a space and
+keeping only the matches that cross the join (R1.12). Only the post body is checked: the
+rest of a draft (`## Resumo`, frontmatter) is a private note that never leaves the second
+brain.
+
+The model writes the drafts after reading untrusted text, so the patterns aim at leaks
+that survive reformatting, not only at the canonical form. Lookalike scripts (a Cyrillic
+`а` in a customer name) are not covered; that is left to the human read.
 
 Accent-insensitive matching (R1.6) folds the line and the term one character at a
 time: `unicodedata.normalize("NFKD", c)` with combining marks dropped, kept only when
 that leaves exactly one character. Folding is length-preserving, so a match span in the
 folded line is the same span in the original, and the reported text is the original.
 
-The issue-key pattern is `\b[A-Z][A-Z0-9]{1,9}-\d{1,6}\b`. It also matches harmless
-uppercase-dash-number strings, such as `GPT-5` or `ISO-9001`, and that is accepted:
-a false positive costs a rewrite, a miss costs a leak. Configured `permitidos`
-(allowed terms) are removed from the line before the issue-key rule runs, so model
-names can be whitelisted in config rather than in the draft.
+The issue-key pattern is case-insensitive and tolerates a spaced hyphen. It also matches
+harmless strings such as `GPT-5`, `ISO-9001` or `top-10`, and that is accepted: a false
+positive costs a rewrite, a miss costs a leak. Configured `permitidos` (allowed terms) are
+masked, ignoring case, before the issue-key rule runs, so model names can be whitelisted
+in config rather than in the draft.
+
+Internal domains match as bare hosts, not only inside `http(s)://` URLs: a host is a
+dot-separated run that ends in the configured domain and is not followed by another
+label, so `intranet.empresa.com.` at the end of a sentence matches and
+`intranet.empresa.com.evil.io` does not.
 
 ## Risks
 

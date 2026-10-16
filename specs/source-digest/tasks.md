@@ -16,3 +16,10 @@
   _Depends 1.1_
 - [x] 2.2 (Unit) Render the digest, record the run and wire `linkedin coletar` — R1.6, R2.4, R3.1, R3.2, R3.3
   _Depends 1.2, 1.3, 1.4, 2.1_
+
+## 3 · Review fixes
+
+- [x] 3.1 (Unit) Give each run its own digest file and flatten origins — R3.1
+  _Reason code review finding_
+- [x] 3.2 (Unit) Count mentions in the body only, read transcripts defensively in local time, match the author email literally — R1.3, R1.4, R1.5
+  _Reason code review finding_

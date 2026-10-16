@@ -1,7 +1,7 @@
 import json
 import os
 import subprocess
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from linkedin_ia import sources
 
@@ -53,9 +53,19 @@ def test_notes_need_the_minimum_mentions_outside_urls(make_config, tmp_path):
     sb = tmp_path / "sb"
     write(sb / "drone.md", "Pedir ao Claude um simulado")
     write(sb / "marca.md", "Design system: https://claude.ai/artifact/x e https://claude.ai/y")
-    write(sb / "IA/estudo.md", "Anotei sobre Claude")
+    write(sb / "IA/Claude.md", "Anotei uma coisa")
+    write(sb / "estudo.md", "Anotei sobre Claude e IA")
 
-    assert origins(sources.second_brain(cfg, SINCE)) == ["IA/estudo.md"]
+    assert origins(sources.second_brain(cfg, SINCE)) == ["estudo.md"]
+
+
+def test_frontmatter_is_cut_from_the_excerpt_even_with_crlf(make_config, tmp_path):
+    cfg = make_config()
+    write(tmp_path / "sb/a.md", "---\r\ntags: [claude]\r\n---\r\n# RAG com IA\r\n")
+    write(tmp_path / "sb/b.md", "---\n---\n# Claude e IA\n")
+
+    texts = sorted(i.text for i in sources.second_brain(cfg, SINCE))
+    assert texts == ["# Claude e IA\n", "# RAG com IA\n"]
 
 
 def test_ai_memory_skips_event_logs_and_manifests(make_config, tmp_path):
@@ -70,27 +80,37 @@ def test_ai_memory_skips_event_logs_and_manifests(make_config, tmp_path):
 
 def git_repo(path, *commits):
     path.mkdir(parents=True)
-    run = lambda *a, **kw: subprocess.run(["git", "-C", str(path), *a], check=True, **kw)  # noqa: E731
+
+    def run(*args, env=None):
+        command = ["git", "-C", str(path), "-c", "commit.gpgsign=false", *args]
+        subprocess.run(command, check=True, env=env)
+
     run("init", "-q")
-    for email, subject in commits:
+    for email, subject, days_ago in commits:
+        stamp = (NOW - timedelta(days=days_ago)).isoformat()
         env = {
             **os.environ,
             "GIT_AUTHOR_EMAIL": email,
             "GIT_COMMITTER_EMAIL": email,
             "GIT_AUTHOR_NAME": "x",
             "GIT_COMMITTER_NAME": "x",
+            "GIT_AUTHOR_DATE": stamp,
+            "GIT_COMMITTER_DATE": stamp,
         }
         run("commit", "-q", "--allow-empty", "-m", subject, env=env)
 
 
-def test_git_collects_only_the_author_commits_per_repository(make_config, tmp_path):
+def test_git_collects_only_the_author_commits_in_the_window(make_config, tmp_path):
     cfg = make_config()
     git_repo(
         tmp_path / "dev/agente",
-        ("eu@exemplo.com", "feat: busca vetorial"),
-        ("outro@exemplo.com", "fix: alheio"),
+        ("eu@exemplo.com", "chore: antigo", 30),
+        ("eu@exemplo.com", "feat: busca vetorial", 1),
+        ("outro@exemplo.com", "fix: alheio", 1),
+        ("meu@exemplo.com.br", "fix: parecido", 1),
+        ("eu@exemploXcom", "fix: ponto curinga", 1),
     )
-    git_repo(tmp_path / "dev/site", ("eu@exemplo.com", "docs: readme"))
+    git_repo(tmp_path / "dev/site", ("eu@exemplo.com", "docs: readme", 0))
     (tmp_path / "dev/sem-git").mkdir()
 
     items = sources.git(cfg, SINCE)
@@ -110,7 +130,8 @@ def prompt(text, when=NOW, kind="user"):
     return {"type": kind, "timestamp": when.isoformat(), "message": {"content": text}}
 
 
-def test_claude_sessions_keep_typed_prompts_about_ai(make_config, tmp_path):
+def test_claude_sessions_keep_typed_prompts_about_ai(make_config, tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", "/home/eu")
     cfg = make_config()
     session(
         tmp_path / "claude/-home-eu-dev-agente/s1.jsonl",
@@ -121,6 +142,12 @@ def test_claude_sessions_keep_typed_prompts_about_ai(make_config, tmp_path):
         prompt("resposta do claude", kind="assistant"),
         prompt("Claude, antigo", when=NOW - timedelta(days=30)),
         {"type": "user", "timestamp": NOW.isoformat(), "message": {"content": [{"type": "x"}]}},
+        {**prompt("Claude resumo da conversa"), "isCompactSummary": True},
+        {**prompt("Claude meta"), "isMeta": True},
+        {"type": "user", "timestamp": "ontem", "message": {"content": "Claude"}},
+        {"type": "user", "message": {"content": "Claude sem data"}},
+        {"type": "user", "timestamp": NOW.isoformat(), "message": "Claude"},
+        123,
     )
 
     items = sources.claude_sessions(cfg, SINCE)
@@ -128,9 +155,20 @@ def test_claude_sessions_keep_typed_prompts_about_ai(make_config, tmp_path):
     assert [(i.origin, i.text) for i in items] == [("agente", "Monte um RAG com a documentação")]
 
 
-def test_session_origin_is_the_project_folder(make_config, tmp_path):
+def test_session_origin_is_the_project_folder(make_config, tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", "/home/maria-silva")
     cfg = make_config()
-    session(tmp_path / "claude/-home-eu/s.jsonl", prompt("Claude, ajuda"))
-    session(tmp_path / "claude/-home-eu-Documents-second-brain/s.jsonl", prompt("IA aqui"))
+    session(tmp_path / "claude/-home-maria-silva/s.jsonl", prompt("Claude, ajuda"))
+    session(tmp_path / "claude/-home-maria-silva-dev-x/s.jsonl", prompt("IA aqui"))
+    session(tmp_path / "claude/-home-maria-silva-Documents-sb/s.jsonl", prompt("IA ali"))
 
-    assert origins(sources.claude_sessions(cfg, SINCE)) == ["Documents-second-brain", "~"]
+    assert origins(sources.claude_sessions(cfg, SINCE)) == ["Documents-sb", "x", "~"]
+
+
+def test_session_dates_are_local_time(make_config, tmp_path):
+    cfg = make_config()
+    utc = datetime.now(UTC)
+    session(tmp_path / "claude/p/s.jsonl", prompt("Claude", when=utc))
+
+    (item,) = sources.claude_sessions(cfg, SINCE)
+    assert item.date.utcoffset() == NOW.utcoffset()
