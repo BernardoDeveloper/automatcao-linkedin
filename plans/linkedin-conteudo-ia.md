@@ -2,7 +2,7 @@
 autonomy: auto
 ci: wait
 status: approved
-checksum: c870e4450a041f497529ad264506e69c7c61f6c431a197358f80202475325c52
+checksum: 018e7e9b2ddbfdb3524ccd994207ad687d52e45e4e2e061400eba95bc7bf5a66
 ---
 
 # LinkedIn content on AI
@@ -47,9 +47,9 @@ written from the material that already exists.
 ### 1 · Base
 
 - [x] 1.1 (Unit) Fill project.md, stack.md, glossary and the two ADRs
-- [ ] 1.2 (Unit) Scaffold the Python package with uv, ruff, pytest and the CLI entry point
+- [x] 1.2 (Unit) Scaffold the Python package with uv, ruff, pytest and the CLI entry point
   _Depends 1.1_
-- [ ] 1.3 (Unit) Add the GitHub Actions workflow running ruff and pytest
+- [x] 1.3 (Unit) Add the GitHub Actions workflow running ruff and pytest
   _Depends 1.2_
 
 ### 2 · Rollout

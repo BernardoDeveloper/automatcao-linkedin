@@ -18,7 +18,7 @@ places.
 - **R1.2** When `linkedin coletar` runs, the CLI shall collect the ai-memory wiki pages modified during the window, excluding event logs (`log-*.md`) and scope manifests (`_meta.md`).
 - **R1.3** When `linkedin coletar` runs, the CLI shall collect the subjects of commits authored by the configured email during the window, from every git repository directly under each configured repository root.
 - **R1.4** When `linkedin coletar` runs, the CLI shall collect the prompts the user typed in Claude Code session transcripts during the window, excluding messages the harness generated.
-- **R1.5** The CLI shall keep a note, an ai-memory page or a session prompt only when it contains at least one configured AI keyword as a whole word, ignoring case.
+- **R1.5** The CLI shall keep a note or an ai-memory page only when it contains at least the configured minimum number of AI keyword occurrences, and a session prompt only when it contains at least one, counting whole words outside URLs and ignoring case.
 - **R1.6** If a configured source path does not exist, then the CLI shall skip that source and name it in the digest as skipped.
 
 ## R2 · Window

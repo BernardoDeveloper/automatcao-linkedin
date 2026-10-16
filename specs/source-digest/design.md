@@ -25,8 +25,10 @@ source as skipped (R1.6).
   starting with `<` (harness messages, command tags, task notifications) and whose
   `timestamp` is in the window.
 
-Keyword match is `\b<keyword>\b`, `re.IGNORECASE`, over the text. `IA` is a keyword, so
-the word boundary is what keeps "dia" and "Bahia" out.
+Keyword match is `\b<keyword>\b`, `re.IGNORECASE`, over the text with URLs removed. `IA`
+is a keyword, so the word boundary is what keeps "dia" and "Bahia" out; removing URLs is
+what keeps every `claude.ai` link from counting. Notes need `min_mencoes` occurrences
+(default 2), because one passing "pedir ao Claude" in a drone note is not AI work.
 
 `src/linkedin_ia/digest.py` renders the Markdown and `src/linkedin_ia/state.py` reads and
 writes `.estado/ultima-coleta` (an ISO timestamp). The state is written only after the

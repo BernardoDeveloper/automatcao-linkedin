@@ -1,0 +1,26 @@
+[project]
+name = "linkedin-ia"
+version = "0.1.0"
+description = "Turns AI activity into LinkedIn drafts in the second brain"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+linkedin = "linkedin_ia.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
