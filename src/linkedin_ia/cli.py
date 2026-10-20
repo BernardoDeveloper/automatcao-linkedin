@@ -6,7 +6,7 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from linkedin_ia import check, credentials, digest, drafts, linkedin_api, state
+from linkedin_ia import check, credentials, digest, drafts, linkedin_api, notify, publisher, state
 from linkedin_ia import config as config_module
 
 
@@ -83,6 +83,13 @@ def login(args: argparse.Namespace, config: config_module.Config) -> int:
     return 0
 
 
+def publicar(args: argparse.Namespace, config: config_module.Config) -> int:
+    _warn_disabled(config)
+    return publisher.run(
+        config, datetime.now().astimezone(), notify.desktop, args.transport, not args.simular
+    )
+
+
 def main(
     argv: list[str] | None = None,
     config: config_module.Config | None = None,
@@ -105,6 +112,14 @@ def main(
     sign_in = commands.add_parser("login", help="store a token from LinkedIn's token generator")
     sign_in.add_argument("--dias", type=int, default=60, help="token lifetime in days")
     sign_in.set_defaults(run=login)
+
+    publish = commands.add_parser(
+        "publicar", help="apply the review file's ticks and publish approved drafts that are due"
+    )
+    publish.add_argument(
+        "--simular", action="store_true", help="print what would happen, change nothing"
+    )
+    publish.set_defaults(run=publicar)
 
     args = parser.parse_args(argv)
     args.transport = transport

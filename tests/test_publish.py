@@ -225,3 +225,18 @@ def test_dry_run_sends_nothing_and_changes_nothing(make_config):
     assert client.posts == []
     assert path.read_text(encoding="utf-8") == before
     assert not cfg.publish_state_file.exists()
+
+
+def test_an_unanswered_draft_is_released_once_marked_published_or_unticked(make_config):
+    cfg = make_config()
+    path, state = approved(cfg, "2026-10-16 - Um")
+    run(cfg, state, FakeClient(post=NoAnswer("timed out")))
+    drafts.update(path, {"status": "publicado"})
+    assert run(cfg, state, FakeClient()) == []
+    assert state.publishing == {}
+
+    path, state = approved(cfg, "2026-10-16 - Dois")
+    run(cfg, state, FakeClient(post=NoAnswer("timed out")))
+    publishing.reconcile(cfg, state, {"2026-10-16 - Dois": False})
+    assert run(cfg, state, FakeClient()) == []
+    assert state.publishing == {}

@@ -15,9 +15,9 @@
   _Depends 2.1_
 - [x] 2.3 (TDD) Publish due approved drafts once, blocking failed checks and missing images, recording the link — R2.1, R2.2, R2.3, R2.4, R2.5, R2.7, R2.8
   _Depends 1.1, 1.2, 1.4, 2.1_
-- [ ] 2.4 (Unit) Notify once per draft and reason, token warnings once a day, and take the run lock — R1.8, R3.3, R3.4, R4.2
+- [x] 2.4 (Unit) Notify once per draft and reason, token warnings once a day, and take the run lock — R1.8, R3.3, R3.4, R4.2
   _Depends 2.3_
-- [ ] 2.5 (Unit) Add `linkedin publicar [--simular]` to the CLI — R2.9
+- [x] 2.5 (Unit) Add `linkedin publicar [--simular]` to the CLI — R2.9
   _Depends 2.4, 2.2_
 
 ## 3 · Wiring

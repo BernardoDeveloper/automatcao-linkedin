@@ -175,7 +175,10 @@ def publish_due(
     for draft in drafts.queue(config):
         stem = draft.path.stem
         if stem in state.publishing:
-            events.append(("verificar", stem, ""))
+            if draft.group == "publicado" or stem not in state.approvals:
+                del state.publishing[stem]
+            else:
+                events.append(("verificar", stem, ""))
             continue
         if not is_approved(config, state, draft) or not is_due(draft, today):
             continue
