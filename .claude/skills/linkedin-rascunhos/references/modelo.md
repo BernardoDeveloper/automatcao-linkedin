@@ -8,6 +8,9 @@ pilar: aprendizado
 status: rascunho
 fontes: ["[[Nota de origem]]", "git: nome-do-repo", "claude: projeto"]
 link:
+imagem:
+primeiro_comentario:
+mencoes: []
 tags: [linkedin, ia]
 ---
 # <Título curto do post>
@@ -31,14 +34,13 @@ tags: [linkedin, ia]
 
 #IA #Protheus
 
-## Checklist antes de postar
+## Checklist antes de aprovar
 - [ ] Li em voz alta e soa como eu
 - [ ] Nada interno (issue, fonte, cliente, URL, print com dado)
-- [ ] `uv run linkedin checar "<este arquivo>"` sem achados
-- [ ] Imagem anexada (se houver)
-- [ ] Link, se houver, vai no primeiro comentário
-- [ ] Responder comentários na primeira hora
-- [ ] Depois de postar: `status: publicado` e `link:` preenchido
+- [ ] Imagem na pasta de imagens com o nome de `imagem:` (se houver)
+- [ ] Aprovar marcando `[x]` em [[Revisão de posts]]
+- [ ] Responder comentários na primeira hora depois que sair
+- [ ] Com `mencoes`: postar à mão, marcar as pessoas, `status: publicado` e `link:`
 
 ## Relacionado
 - [[LinkedIn]] · [[Carreira]]

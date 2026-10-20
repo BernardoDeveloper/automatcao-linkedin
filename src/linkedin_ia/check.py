@@ -23,7 +23,7 @@ ISSUE_PATTERNS = (
     re.compile(r"\b[A-Z][A-Z0-9]{2,9} \d{4,6}\b"),
 )
 SOURCE_FILE = re.compile(r"\b[\w-]+\.(?:prw|prx|tlpp|aph|ch)\b|\bU_\w+", re.IGNORECASE)
-EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+EMAIL = re.compile(r"[\w.+-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63})+")
 IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 CREDENTIAL = re.compile(
     r"\b(?:sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}"
@@ -140,6 +140,11 @@ def check(path: Path, config: Config) -> list[Finding]:
     for first, lines in sections:
         findings += _section_findings(path, first, lines, config)
     return sorted(findings, key=lambda f: f.line)
+
+
+def text_findings(text: str, path: Path, config: Config) -> list[Finding]:
+    """The rules applied to a piece of text that is not a `## Post` section."""
+    return list(_section_findings(path, 1, text.splitlines(), config))
 
 
 def disabled_rules(config: Config) -> list[str]:

@@ -6,6 +6,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+DEFAULT_REVIEW = "02-Areas/Carreira/LinkedIn/Revisão de posts.md"
+DEFAULT_IMAGES = "02-Areas/Carreira/LinkedIn/Imagens"
+DEFAULT_API_VERSION = "202610"
+DEFAULT_TOKEN = "~/.config/linkedin-ia/token.json"
+
 
 @dataclass(frozen=True)
 class Config:
@@ -23,6 +28,10 @@ class Config:
     internal_domains: tuple[str, ...]
     forbidden_terms: tuple[str, ...]
     allowed_terms: tuple[str, ...]
+    review_file: Path
+    images_dir: Path
+    api_version: str
+    token_file: Path
     root: Path = ROOT
 
     @property
@@ -32,6 +41,10 @@ class Config:
     @property
     def state_file(self) -> Path:
         return self.root / ".estado" / "ultima-coleta"
+
+    @property
+    def publish_state_file(self) -> Path:
+        return self.root / ".estado" / "publicacao.json"
 
 
 def _path(value: str) -> Path:
@@ -47,6 +60,7 @@ def load(path: Path | None = None, root: Path = ROOT) -> Config:
     sources, collect = data["fontes"], data["coleta"]
     drafts, secret = data["rascunhos"], data["confidencialidade"]
     second_brain = _path(sources["second_brain"])
+    api = data.get("linkedin", {})
     return Config(
         second_brain=second_brain,
         ai_memory=_path(sources["ai_memory"]),
@@ -62,5 +76,9 @@ def load(path: Path | None = None, root: Path = ROOT) -> Config:
         internal_domains=tuple(secret["dominios_internos"]),
         forbidden_terms=tuple(secret["termos_proibidos"]),
         allowed_terms=tuple(secret["permitidos"]),
+        review_file=second_brain / drafts.get("revisao", DEFAULT_REVIEW),
+        images_dir=second_brain / drafts.get("imagens", DEFAULT_IMAGES),
+        api_version=str(api.get("versao", DEFAULT_API_VERSION)),
+        token_file=_path(api.get("token", DEFAULT_TOKEN)),
         root=root,
     )

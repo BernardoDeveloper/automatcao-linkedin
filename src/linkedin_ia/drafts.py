@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from linkedin_ia import check
 from linkedin_ia.config import Config
 
 STATUSES = ("ideia", "rascunho", "aprovado", "publicado")
@@ -69,6 +70,29 @@ def strip_frontmatter(text: str) -> str:
     return text if parts is None else "\n".join(parts[1]).lstrip("\n")
 
 
+def post_body(text: str) -> str:
+    """The first `## Post` section, without the blank lines around it."""
+    sections = check.post_bodies(text)
+    return "\n".join(sections[0][1]).strip("\n") if sections else ""
+
+
+def update(path: Path, fields: dict[str, str]) -> None:
+    """Set frontmatter keys in place; keys not yet there go at the end of the block."""
+    text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    parts = _split(text)
+    if parts is None:
+        raise ValueError(f"{path}: sem frontmatter")
+    head, body = parts
+    pending = dict(fields)
+    for index, line in enumerate(head):
+        key, sep, _ = line.partition(":")
+        if sep and not line.startswith((" ", "-")) and key.strip() in pending:
+            value = pending.pop(key.strip())
+            head[index] = f"{key.strip()}: {value}".rstrip()
+    head.extend(f"{key}: {value}".rstrip() for key, value in pending.items())
+    path.write_text("\n".join(["---", *head, "---", *body]), encoding="utf-8")
+
+
 def load(path: Path) -> Draft:
     return Draft(path, frontmatter(path.read_text(encoding="utf-8")))
 
@@ -76,4 +100,10 @@ def load(path: Path) -> Draft:
 def queue(config: Config) -> list[Draft]:
     if not config.drafts_dir.is_dir():
         return []
-    return [load(p) for p in sorted(config.drafts_dir.glob("*.md"))]
+    found = []
+    for path in sorted(config.drafts_dir.glob("*.md")):
+        try:
+            found.append(load(path))
+        except (UnicodeDecodeError, OSError):
+            continue
+    return found

@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded-by: 0003-publish-approved-drafts-through-the-linkedin-api
 ---
 
 # 0001 · Drafts only, no LinkedIn API

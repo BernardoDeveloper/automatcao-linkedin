@@ -1,11 +1,12 @@
-"""The `linkedin` command: coletar, checar, fila."""
+"""The `linkedin` command: coletar, checar, fila, login, publicar."""
 
 import argparse
+import getpass
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from linkedin_ia import check, digest, drafts, state
+from linkedin_ia import check, credentials, digest, drafts, linkedin_api, notify, publisher, state
 from linkedin_ia import config as config_module
 
 
@@ -62,7 +63,38 @@ def fila(args: argparse.Namespace, config: config_module.Config) -> int:
     return 2 if blocked else 0
 
 
-def main(argv: list[str] | None = None, config: config_module.Config | None = None) -> int:
+def login(args: argparse.Namespace, config: config_module.Config) -> int:
+    secret = getpass.getpass("Token do LinkedIn (gerador do LinkedIn Developers): ").strip()
+    if not secret:
+        print("nenhum token informado", file=sys.stderr)
+        return 1
+    client = linkedin_api.Client(secret, config.api_version, args.transport)
+    try:
+        person, name = client.member()
+    except linkedin_api.ApiError as error:
+        print(f"token recusado pelo LinkedIn ({error})", file=sys.stderr)
+        return 2
+    except linkedin_api.NoAnswer as error:
+        print(f"LinkedIn não respondeu: {error}", file=sys.stderr)
+        return 1
+    expires = datetime.now().astimezone() + timedelta(days=args.dias)
+    credentials.save(config.token_file, credentials.Token(secret, person, name, expires))
+    print(f"ok: token de {name or person} válido até {expires:%Y-%m-%d}, em {config.token_file}")
+    return 0
+
+
+def publicar(args: argparse.Namespace, config: config_module.Config) -> int:
+    _warn_disabled(config)
+    return publisher.run(
+        config, datetime.now().astimezone(), notify.desktop, args.transport, not args.simular
+    )
+
+
+def main(
+    argv: list[str] | None = None,
+    config: config_module.Config | None = None,
+    transport: linkedin_api.Transport = linkedin_api.urllib_transport,
+) -> int:
     parser = argparse.ArgumentParser(prog="linkedin", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -77,7 +109,20 @@ def main(argv: list[str] | None = None, config: config_module.Config | None = No
     listing = commands.add_parser("fila", help="list the drafts by status")
     listing.set_defaults(run=fila)
 
+    sign_in = commands.add_parser("login", help="store a token from LinkedIn's token generator")
+    sign_in.add_argument("--dias", type=int, default=60, help="token lifetime in days")
+    sign_in.set_defaults(run=login)
+
+    publish = commands.add_parser(
+        "publicar", help="apply the review file's ticks and publish approved drafts that are due"
+    )
+    publish.add_argument(
+        "--simular", action="store_true", help="print what would happen, change nothing"
+    )
+    publish.set_defaults(run=publicar)
+
     args = parser.parse_args(argv)
+    args.transport = transport
     return args.run(args, config or config_module.load())
 
 

@@ -39,6 +39,6 @@ talks the model into editing `src/` is denied rather than executed by the next
 ## Data
 
 Status moves `ideia → rascunho → aprovado → publicado`. The skills only ever write
-`rascunho`; Bernardo moves it to `aprovado`, posts it, and sets `publicado` with `link`.
+`rascunho`; approval and publishing belong to specs/automatic-publishing/.
 Pillars: `aprendizado` (something learned), `bastidor` (how something was built),
 `apresentacao` (a talk), `opiniao` (a take on AI news or practice).

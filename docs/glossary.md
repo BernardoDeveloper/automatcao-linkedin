@@ -12,3 +12,6 @@ One canonical term per concept, and the synonyms nobody should use for it.
 - **talk** — a session Bernardo gave at work about AI, with its slides or guide. Avoid: presentation, lecture
 - **confidentiality check** — `linkedin checar`: the rules that block internal TOTVS material in a post body. Avoid: sanitizer, guardrail
 - **queue** — every draft listed by status, as `linkedin fila` prints it.
+- **review file** — the Markdown file in the second brain (`Revisão de posts.md`) where Bernardo ticks the drafts that may be published. Avoid: approval list, inbox
+- **approval** — a ticked draft recorded in `.estado/publicacao.json` with the fingerprint of its post body, first comment and image; only an approval lets a draft be published.
+- **publish run** — one `linkedin publicar`: apply ticks, publish what is due, rewrite the review file, notify.
