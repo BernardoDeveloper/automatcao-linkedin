@@ -164,14 +164,21 @@ def blockers(config: Config, draft: drafts.Draft) -> list[str]:
     return blockers_of(config, snapshot(config, draft))
 
 
+def approved(config: Config, state: State, draft: drafts.Draft) -> Snapshot | None:
+    """The draft as approved, read once, or None when no approval covers what it holds now."""
+    snap = snapshot(config, draft)
+    current = snap.draft
+    if (
+        mentions(current)
+        or current.group not in ("rascunho", "aprovado")
+        or state.approvals.get(draft.path.stem) != snap.fingerprint
+    ):
+        return None
+    return snap
+
+
 def is_approved(config: Config, state: State, draft: drafts.Draft) -> bool:
-    recorded = state.approvals.get(draft.path.stem)
-    return (
-        recorded is not None
-        and not mentions(draft)
-        and draft.group in ("rascunho", "aprovado")
-        and recorded == fingerprint(config, draft)
-    )
+    return approved(config, state, draft) is not None
 
 
 def reconcile(
@@ -208,6 +215,8 @@ def reconcile(
                 drafts.update(draft.path, {"status": "rascunho"})
         elif ticked and seen != version(current):
             events.append(("alterado", stem))
+            if write and draft.group == "aprovado":
+                drafts.update(draft.path, {"status": "rascunho"})
         elif ticked:
             state.approvals[stem] = current
             events.append(("aprovado", stem))
@@ -249,12 +258,8 @@ def publish_due(
             else:
                 events.append(("verificar", stem, ""))
             continue
-        snap = snapshot(config, draft)
-        if (
-            mentions(snap.draft)
-            or state.approvals.get(stem) != snap.fingerprint
-            or not is_due(snap.draft, today)
-        ):
+        snap = approved(config, state, draft)
+        if snap is None or not is_due(snap.draft, today):
             continue
         blocked = blockers_of(config, snap)
         if blocked:

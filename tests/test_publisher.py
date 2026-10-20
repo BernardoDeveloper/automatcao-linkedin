@@ -138,7 +138,7 @@ def test_an_edit_after_approval_notifies(make_config, tmp_path):
     go(cfg, sent)
     path.write_text(path.read_text(encoding="utf-8").replace("Texto", "Novo"), encoding="utf-8")
     go(cfg, sent)
-    assert "Um mudou depois de aprovado e voltou para revisão" in sent
+    assert "Um mudou e voltou para revisão: confira e marque de novo" in sent
 
 
 def test_a_run_in_progress_makes_the_next_one_do_nothing(make_config, tmp_path):
@@ -202,3 +202,13 @@ def test_dry_run_does_not_even_create_the_state_folder(make_config, tmp_path):
     cfg = setup(make_config, tmp_path)
     go(cfg, [], write=False)
     assert not cfg.publish_state_file.parent.exists()
+
+
+def test_a_review_file_inside_the_drafts_folder_stops_the_run(make_config, tmp_path):
+    cfg = setup(make_config, tmp_path)
+    cfg = replace(cfg, review_file=cfg.drafts_dir / ".." / "Posts" / "Rev.md")
+    write(cfg, "2026-10-16 - Um")
+    sent = []
+    assert go(cfg, sent) == 2
+    assert sent == ["Publicação parada: arquivo de revisão ou imagens dentro da pasta de rascunhos"]
+    assert not cfg.review_file.exists()

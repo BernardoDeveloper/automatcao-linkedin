@@ -77,6 +77,16 @@ def run(
         return _run(config, now, notifier, transport, write, out)
 
 
+def _outside_drafts(config: Config) -> list[str]:
+    """The review file and images must be out of reach of the agent that writes drafts."""
+    drafts_dir = config.drafts_dir.resolve()
+    return [
+        str(p)
+        for p in (config.review_file, config.images_dir)
+        if p.resolve().is_relative_to(drafts_dir)
+    ]
+
+
 def _run(
     config: Config,
     now: datetime,
@@ -85,6 +95,14 @@ def _run(
     write: bool,
     out: Callable[[str], None],
 ) -> int:
+    inside = _outside_drafts(config)
+    if inside:
+        out(f"recusado: dentro da pasta de rascunhos: {', '.join(inside)}")
+        if write:
+            notifier(
+                "Publicação parada: arquivo de revisão ou imagens dentro da pasta de rascunhos"
+            )
+        return 2
     today = now.date().isoformat()
     state = publishing.load_state(config.publish_state_file)
     once = _Once(state, notifier, write)
@@ -94,7 +112,7 @@ def _run(
     ):
         out(f"{kind}: {stem}")
         if kind == "alterado":
-            once(None, f"{_title(stem)} mudou depois de aprovado e voltou para revisão")
+            once(None, f"{_title(stem)} mudou e voltou para revisão: confira e marque de novo")
 
     token = credentials.load(config.token_file)
     if token is None or token.days_left(now) <= 0:

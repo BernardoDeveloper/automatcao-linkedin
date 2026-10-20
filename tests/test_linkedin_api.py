@@ -166,3 +166,62 @@ def test_a_redirect_is_not_followed(monkeypatch):
     fake = Fake(Response(302, {"location": "https://evil.example"}, b""))
     with pytest.raises(NoAnswer):
         Client("tok", "202610", fake).create_post("urn:li:person:p", "Oi")
+
+
+def test_a_truncated_error_body_is_no_answer():
+    import http.server
+    import threading
+
+    class Truncated(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(503)
+            self.send_header("Content-Length", "100")
+            self.end_headers()
+            self.wfile.write(b"short")
+            self.wfile.flush()
+            self.connection.close()
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Truncated)
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/"
+        request = linkedin_api.urllib.request.Request(url, data=b"{}", method="POST")
+        with pytest.raises(NoAnswer):
+            linkedin_api.urllib_transport(request)
+    finally:
+        thread.join(timeout=5)
+        server.server_close()
+
+
+def test_a_real_redirect_is_not_followed():
+    import http.server
+    import threading
+
+    hits = []
+
+    class Redirect(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(307)
+            self.send_header("Location", "/elsewhere")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Redirect)
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/a"
+        response = linkedin_api.urllib_transport(linkedin_api.urllib.request.Request(url))
+    finally:
+        thread.join(timeout=5)
+        server.server_close()
+    assert response.status == 307
+    assert hits == ["/a"]

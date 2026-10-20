@@ -50,7 +50,11 @@ def urllib_transport(request: urllib.request.Request) -> Response:
             return Response(response.status, headers, response.read())
     except urllib.error.HTTPError as error:
         headers = {k.lower(): v for k, v in error.headers.items()}
-        return Response(error.code, headers, error.read())
+        try:
+            body = error.read()
+        except (http.client.HTTPException, OSError) as broken:
+            raise NoAnswer(f"HTTP {error.code}, resposta incompleta: {broken!r}") from broken
+        return Response(error.code, headers, body)
     except (urllib.error.URLError, http.client.HTTPException, TimeoutError, OSError) as error:
         raise NoAnswer(str(error)) from error
 

@@ -266,3 +266,14 @@ def test_a_first_comment_failing_the_check_blocks_the_post(make_config):
     events = run(cfg, state, client)
     assert client.posts == []
     assert events == [("bloqueado", "2026-10-16 - Um", "primeiro comentário com achado no checar")]
+
+
+def test_a_published_draft_with_a_leftover_approval_is_not_posted_again(make_config):
+    cfg = make_config()
+    _, state = approved(cfg, "2026-10-16 - Um")
+    leftover = dict(state.approvals)
+    run(cfg, state, FakeClient())
+    state.approvals.update(leftover)
+    client = FakeClient()
+    assert run(cfg, state, client) == []
+    assert client.posts == []
