@@ -170,8 +170,8 @@ def test_blocked_drafts_are_not_published(make_config):
 def test_an_error_status_keeps_the_draft_approved_for_the_next_run(make_config):
     cfg = make_config()
     path, state = approved(cfg, "2026-10-16 - Um")
-    events = run(cfg, state, FakeClient(post=ApiError(500, "boom")))
-    assert events == [("erro", "2026-10-16 - Um", "HTTP 500: boom")]
+    events = run(cfg, state, FakeClient(post=ApiError(429, "slow down")))
+    assert events == [("erro", "2026-10-16 - Um", "HTTP 429: slow down")]
     assert "2026-10-16 - Um" in state.approvals and state.publishing == {}
     assert meta(path)["status"] == "aprovado"
     client = FakeClient()

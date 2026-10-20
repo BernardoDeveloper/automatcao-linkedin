@@ -65,3 +65,12 @@ def test_login_with_a_rejected_token_stores_nothing(make_config, monkeypatch, ca
     assert not cfg.token_file.exists()
     out = capsys.readouterr()
     assert "segredo-123" not in out.out + out.err
+
+
+def test_overwriting_a_loose_token_file_leaves_it_private(tmp_path):
+    path = tmp_path / "token.json"
+    path.write_text("{}", encoding="utf-8")
+    path.chmod(0o644)
+    credentials.save(path, credentials.Token("t", "u", "n", NOW))
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert [p.name for p in tmp_path.iterdir()] == ["token.json"]

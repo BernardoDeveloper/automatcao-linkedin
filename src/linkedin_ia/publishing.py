@@ -230,7 +230,7 @@ def _publish(
     try:
         image_path = find_image(config, draft)
         image = client.upload_image(author, image_path.read_bytes()) if image_path else None
-    except (ApiError, NoAnswer) as error:
+    except (ApiError, NoAnswer, KeyError, ValueError) as error:
         return [("erro", stem, str(error))]
 
     state.publishing[stem] = now.isoformat()

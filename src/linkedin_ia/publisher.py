@@ -48,11 +48,12 @@ def _awaiting_review(config: Config, state: publishing.State) -> list[str]:
 
 
 def _prune(state: publishing.State, config: Config, today: str) -> None:
-    stems = {d.path.stem for d in drafts.queue(config)}
+    stems = [d.path.stem for d in drafts.queue(config)]
     state.notified = {
         key
         for key in state.notified
-        if key.split(":", 1)[0] in stems or (key.startswith("token:") and key.endswith(today))
+        if (key.startswith("token:") and key.endswith(today))
+        or any(key.startswith(f"{stem}:") for stem in stems)
     }
 
 
@@ -64,6 +65,8 @@ def run(
     write: bool = True,
     out: Callable[[str], None] = print,
 ) -> int:
+    if not write:
+        return _run(config, now, notifier, transport, write, out)
     config.publish_state_file.parent.mkdir(parents=True, exist_ok=True)
     with open(config.publish_state_file.with_suffix(".lock"), "w") as lock:
         try:

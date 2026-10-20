@@ -177,3 +177,22 @@ def test_cli_simular_prints_what_would_happen_and_changes_nothing(
     assert transport.urls == []
     assert cfg.publish_state_file.read_text(encoding="utf-8") == before
     assert not cfg.review_file.exists()
+
+
+def test_a_title_with_a_colon_is_still_notified_once(make_config, tmp_path):
+    cfg = setup(make_config, tmp_path)
+    write(cfg, "2026-10-16 - Dica: Python", body="Veja ABC-1234")
+    sent = []
+    go(cfg, sent)
+    tick(cfg, "2026-10-16 - Dica: Python")
+    go(cfg, sent)
+    go(cfg, sent)
+    go(cfg, sent)
+    assert sent.count("Dica: Python não saiu: 1 achado(s) no checar") == 1
+    assert len([s for s in sent if "para revisar" in s]) == 1
+
+
+def test_dry_run_does_not_even_create_the_state_folder(make_config, tmp_path):
+    cfg = setup(make_config, tmp_path)
+    go(cfg, [], write=False)
+    assert not cfg.publish_state_file.parent.exists()

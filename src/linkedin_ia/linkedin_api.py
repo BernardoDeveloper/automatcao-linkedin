@@ -1,5 +1,6 @@
 """LinkedIn's REST API: who the token belongs to, image upload, posts and comments."""
 
+import http.client
 import json
 import urllib.error
 import urllib.request
@@ -21,7 +22,7 @@ Transport = Callable[[urllib.request.Request], Response]
 
 
 class ApiError(Exception):
-    """LinkedIn answered with an error status: nothing was created."""
+    """LinkedIn refused the request (4xx): nothing was created."""
 
     def __init__(self, status: int, message: str) -> None:
         super().__init__(f"HTTP {status}: {message}")
@@ -29,7 +30,7 @@ class ApiError(Exception):
 
 
 class NoAnswer(Exception):
-    """The request got no answer, so whether it took effect is unknown."""
+    """No answer, a server error (5xx) or an unreadable one: whether it took effect is unknown."""
 
 
 def urllib_transport(request: urllib.request.Request) -> Response:
@@ -40,7 +41,7 @@ def urllib_transport(request: urllib.request.Request) -> Response:
     except urllib.error.HTTPError as error:
         headers = {k.lower(): v for k, v in error.headers.items()}
         return Response(error.code, headers, error.read())
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except (urllib.error.URLError, http.client.HTTPException, TimeoutError, OSError) as error:
         raise NoAnswer(str(error)) from error
 
 
@@ -77,6 +78,8 @@ class Client:
         response = self._transport(
             urllib.request.Request(url, data=data, headers=headers, method=method)
         )
+        if response.status >= 500:
+            raise NoAnswer(f"HTTP {response.status}: {_message(response.body)}")
         if response.status >= 400:
             raise ApiError(response.status, _message(response.body))
         return response

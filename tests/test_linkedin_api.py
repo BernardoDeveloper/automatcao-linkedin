@@ -122,3 +122,20 @@ def test_post_url():
     assert linkedin_api.post_url("urn:li:share:1") == (
         "https://www.linkedin.com/feed/update/urn:li:share:1/"
     )
+
+
+def test_a_server_error_is_an_unknown_outcome_not_a_refusal():
+    fake = Fake(Response(504, {}, b'{"message": "Gateway Timeout"}'))
+    with pytest.raises(NoAnswer):
+        Client("tok", "202610", fake).create_post("urn:li:person:p", "Oi")
+
+
+def test_a_broken_http_answer_is_no_answer(monkeypatch):
+    import http.client
+
+    def fail(request, timeout):
+        raise http.client.IncompleteRead(b"")
+
+    monkeypatch.setattr(linkedin_api.urllib.request, "urlopen", fail)
+    with pytest.raises(NoAnswer):
+        linkedin_api.urllib_transport(linkedin_api.urllib.request.Request("https://x"))

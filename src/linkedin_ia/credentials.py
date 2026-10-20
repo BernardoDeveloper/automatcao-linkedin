@@ -26,10 +26,12 @@ def save(path: Path, token: Token) -> None:
         "name": token.name,
         "expires_at": token.expires_at.isoformat(),
     }
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.unlink(missing_ok=True)
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as file:
         json.dump(data, file)
-    path.chmod(0o600)
+    temporary.replace(path)
 
 
 def load(path: Path) -> Token | None:

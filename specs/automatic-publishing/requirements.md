@@ -31,8 +31,8 @@ images in a folder; the only interruptions are desktop notifications. Supersedes
 - **R2.4** If the first comment is rejected, then the publisher shall keep the draft as `publicado` and notify to add the comment by hand.
 - **R2.5** If an approved, due draft fails the confidentiality check, names an image that does not exist, or has an empty post body or one longer than 3000 characters, then the publisher shall not publish it and shall notify the reason once.
 - **R2.6** The publisher shall send the post body in LinkedIn's commentary format, with reserved characters escaped and hashtags kept as hashtags.
-- **R2.7** If LinkedIn answers a publish request with an error status, then the publisher shall keep the draft approved, notify the status and retry on the next run.
-- **R2.8** If a publish request ends without an answer, then the publisher shall not publish that draft again and shall notify to check LinkedIn by hand.
+- **R2.7** If LinkedIn refuses a publish request with a 4xx status, then the publisher shall keep the draft approved, notify the status and retry on the next run.
+- **R2.8** If a publish request ends without an answer, with a 5xx status or with an unreadable answer, then the publisher shall not publish that draft again and shall notify to check LinkedIn by hand.
 - **R2.9** When `linkedin publicar --simular` runs, the publisher shall print what it would approve and publish, and shall change no file and send no request.
 
 ## R3 · Access token

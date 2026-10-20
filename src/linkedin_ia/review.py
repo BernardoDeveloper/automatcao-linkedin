@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime
+from pathlib import Path
 
 from linkedin_ia import drafts, publishing
 from linkedin_ia.config import Config
@@ -28,6 +29,13 @@ def _when(draft: drafts.Draft) -> str:
     return _clean(str(draft.meta.get("publicar_em") or "").strip())
 
 
+def _shown(config: Config, path: Path) -> str:
+    try:
+        return path.relative_to(config.second_brain).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def _image(config: Config, draft: drafts.Draft) -> str:
     name = _clean(publishing.image_name(draft))
     if not name:
@@ -37,8 +45,7 @@ def _image(config: Config, draft: drafts.Draft) -> str:
     found = publishing.find_image(config, draft)
     if found is not None:
         return f"imagem: `{found.name}`"
-    folder = config.images_dir.relative_to(config.second_brain).as_posix()
-    return f"**falta a imagem** `{folder}/{name}`"
+    return f"**falta a imagem** `{_shown(config, config.images_dir)}/{name}`"
 
 
 def render(config: Config, state: publishing.State, now: datetime) -> str:
@@ -66,7 +73,7 @@ def render(config: Config, state: publishing.State, now: datetime) -> str:
                 waiting.append((_when(draft) or "9999", f"- [ ] [[{stem}]] · {' · '.join(notes)}"))
 
     published.sort(key=lambda d: _when(d), reverse=True)
-    folder = config.images_dir.relative_to(config.second_brain).as_posix()
+    folder = _shown(config, config.images_dir)
     lines = [
         "---",
         "tipo: revisao",
@@ -79,7 +86,8 @@ def render(config: Config, state: publishing.State, now: datetime) -> str:
         "Marque `[x]` para aprovar: o post sai sozinho no `publicar_em` (vazio = na próxima "
         "rodada, de hora em hora das 9h às 18h). Desmarque para tirar da fila. Editar um post "
         "aprovado devolve ele para cá.",
-        f"Imagens vão em `{folder}/`, com o nome que aparece na linha.",
+        f"Imagens vão em `{folder}/`, com o nome que aparece na linha. Coloque a imagem antes "
+        "de marcar: trocar a imagem de um post aprovado também devolve ele para cá.",
         "",
         "## Para revisar",
         *([line for _, line in sorted(waiting)] or ["_nada_"]),
