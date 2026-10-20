@@ -2,11 +2,11 @@
 
 ## 1 · Building blocks
 
-- [ ] 1.1 (Unit) Read the new config keys with their defaults, and add `post_body()` and `update()` to drafts — R1.1, R2.2
-- [ ] 1.2 (Unit) Convert a post body to LinkedIn's commentary format — R2.6
-- [ ] 1.3 (Unit) Send desktop notifications through notify-send, silent when it is missing — R1.8, R2.2
-- [ ] 1.4 (Unit) Call userinfo, image upload, post and comment over an injected transport — R2.1, R2.3, R3.1
-- [ ] 1.5 (Unit) Store, load and age the token file, and add `linkedin login` — R3.1, R3.2
+- [x] 1.1 (Unit) Read the new config keys with their defaults, and add `post_body()` and `update()` to drafts — R1.1, R2.2
+- [x] 1.2 (Unit) Convert a post body to LinkedIn's commentary format — R2.6
+- [x] 1.3 (Unit) Send desktop notifications through notify-send, silent when it is missing — R1.8, R2.2
+- [x] 1.4 (Unit) Call userinfo, image upload, post and comment over an injected transport — R2.1, R2.3, R3.1
+- [x] 1.5 (Unit) Store, load and age the token file, and add `linkedin login` — R3.1, R3.2
 
 ## 2 · Review and publish
 

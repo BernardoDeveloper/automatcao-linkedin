@@ -24,6 +24,15 @@ palavras_chave = [
 [rascunhos]
 # Relative to second_brain.
 pasta = "02-Areas/Carreira/LinkedIn/Posts"
+# Where you tick the drafts that may be published, and where their images go.
+revisao = "02-Areas/Carreira/LinkedIn/Revisão de posts.md"
+imagens = "02-Areas/Carreira/LinkedIn/Posts/imagens"
+
+[linkedin]
+# LinkedIn-Version header (YYYYMM). LinkedIn retires a version about a year after release.
+versao = "202610"
+# Written by `linkedin login`, mode 0600. Keep it outside this repository.
+token = "~/.config/linkedin-ia/token.json"
 
 [confidencialidade]
 # URLs under these hosts never go into a post.

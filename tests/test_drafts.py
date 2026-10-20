@@ -75,3 +75,31 @@ def test_fila_without_drafts_folder(make_config, capsys):
     out = capsys.readouterr().out
     assert f"pasta: {make_config().drafts_dir}\n" in out
     assert "nenhum rascunho" in out
+
+
+def test_post_body_is_the_post_section_without_surrounding_blank_lines(tmp_path):
+    path = write(tmp_path, "2026-10-16 - P.md", "rascunho", body="Linha 1\n\nLinha 2")
+    assert drafts.post_body(path.read_text(encoding="utf-8")) == "Linha 1\n\nLinha 2"
+    assert drafts.post_body("---\nstatus: x\n---\n# sem post\n") == ""
+
+
+def test_update_sets_status_and_link_and_keeps_every_other_line(tmp_path):
+    path = write(tmp_path, "2026-10-16 - P.md", "aprovado")
+    before = path.read_text(encoding="utf-8")
+    drafts.update(path, {"status": "publicado", "link": "https://x/1/"})
+    after = path.read_text(encoding="utf-8")
+    assert drafts.frontmatter(after)["status"] == "publicado"
+    assert drafts.frontmatter(after)["link"] == "https://x/1/"
+    assert (
+        after.replace("status: publicado", "status: aprovado").replace("\nlink: https://x/1/", "")
+        == before
+    )
+
+
+def test_update_overwrites_an_empty_key_in_place(tmp_path):
+    path = tmp_path / "d.md"
+    path.write_text("---\nstatus: aprovado\nlink:\ntags: [a]\n---\n# T\n", encoding="utf-8")
+    drafts.update(path, {"link": "https://x/2/"})
+    assert path.read_text(encoding="utf-8") == (
+        "---\nstatus: aprovado\nlink: https://x/2/\ntags: [a]\n---\n# T\n"
+    )
