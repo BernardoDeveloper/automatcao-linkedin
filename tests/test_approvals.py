@@ -106,18 +106,24 @@ def test_frontmatter_outside_the_fingerprint_does_not_void_the_approval(make_con
 
 def test_a_changed_first_comment_or_image_voids_the_approval(make_config):
     cfg = make_config()
-    path = write(cfg, "2026-10-16 - Um", extra="primeiro_comentario: Link: https://a\nimagem: um.png\n")
+    path = write(
+        cfg, "2026-10-16 - Um", extra="primeiro_comentario: Link: https://a\nimagem: um.png\n"
+    )
     cfg.images_dir.mkdir(parents=True)
     (cfg.images_dir / "um.png").write_bytes(b"A")
     state = publishing.State()
     publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
 
     (cfg.images_dir / "um.png").write_bytes(b"B")
-    assert publishing.reconcile(cfg, state, {"2026-10-16 - Um": True}) == [("alterado", "2026-10-16 - Um")]
+    assert publishing.reconcile(cfg, state, {"2026-10-16 - Um": True}) == [
+        ("alterado", "2026-10-16 - Um")
+    ]
 
     publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
     drafts.update(path, {"primeiro_comentario": "Link: https://b"})
-    assert publishing.reconcile(cfg, state, {"2026-10-16 - Um": True}) == [("alterado", "2026-10-16 - Um")]
+    assert publishing.reconcile(cfg, state, {"2026-10-16 - Um": True}) == [
+        ("alterado", "2026-10-16 - Um")
+    ]
 
 
 def test_a_draft_with_mentions_is_never_approved(make_config):
