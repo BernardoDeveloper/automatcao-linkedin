@@ -102,10 +102,10 @@ def test_a_forged_aprovado_status_is_listed_for_review(make_config):
 
 def test_drafts_with_mentions_are_manual_without_a_checkbox(make_config):
     cfg = make_config()
-    write(cfg, "2026-10-19 - Orfanato", extra="mencoes: [Fernanda Almeida]\n")
+    write(cfg, "2026-10-19 - Orfanato", extra="mencoes: [Fulana de Tal]\n")
     text = review.render(cfg, publishing.State(), NOW)
     assert section(text, "Publicar manualmente (marcação de pessoas)") == (
-        "- [[2026-10-19 - Orfanato]] · marcar: Fernanda Almeida"
+        "- [[2026-10-19 - Orfanato]] · marcar: Fulana de Tal"
     )
     assert "Orfanato" not in section(text, "Para revisar")
 
