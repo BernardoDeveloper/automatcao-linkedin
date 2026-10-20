@@ -1,7 +1,7 @@
 from linkedin_ia import check
 
 HEADER = "---\nstatus: rascunho\n---\n# Título com PROJ-1\n\n## Post\n\n"
-FOOTER = "\n\n## Checklist antes de postar\n\n- [ ] JURA106.prw fora do post\n"
+FOOTER = "\n\n## Checklist antes de postar\n\n- [ ] ROTINA01.prw fora do post\n"
 
 
 def draft(tmp_path, body, name="post.md"):
@@ -30,9 +30,9 @@ def test_allowed_terms_are_not_issue_keys(tmp_path, make_config):
 
 
 def test_protheus_sources_are_reported(tmp_path, make_config):
-    path = draft(tmp_path, "Mexi no JURA106.tlpp e no MATA410.PRW e no x.ch, y.aph, z.prx")
+    path = draft(tmp_path, "Mexi no ROTINA01.tlpp e no PEDIDO99.PRW e no x.ch, y.aph, z.prx")
     found = [t for _, r, t in rules(check.check(path, make_config())) if r == "fonte"]
-    assert found == ["JURA106.tlpp", "MATA410.PRW", "x.ch", "y.aph", "z.prx"]
+    assert found == ["ROTINA01.tlpp", "PEDIDO99.PRW", "x.ch", "y.aph", "z.prx"]
 
 
 def test_emails_and_ips_are_reported(tmp_path, make_config):

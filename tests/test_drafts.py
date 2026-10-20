@@ -45,7 +45,7 @@ def test_fila_groups_by_status_and_marks_failing_drafts(make_config, capsys):
 
 def test_fila_exits_2_when_an_approved_draft_fails(make_config, capsys):
     cfg = make_config()
-    write(cfg.drafts_dir, "2026-10-16 - Aprovado.md", "aprovado", body="Veja JURA106.prw")
+    write(cfg.drafts_dir, "2026-10-16 - Aprovado.md", "aprovado", body="Veja ROTINA01.prw")
     assert cli.main(["fila"], config=cfg) == 2
 
 

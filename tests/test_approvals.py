@@ -167,7 +167,7 @@ def test_a_changed_first_comment_or_image_voids_the_approval(make_config):
 
 def test_a_draft_with_mentions_is_never_approved(make_config):
     cfg = make_config()
-    path = write(cfg, "2026-10-19 - Manual", extra="mencoes: [Fernanda Almeida]\n")
+    path = write(cfg, "2026-10-19 - Manual", extra="mencoes: [Fulana de Tal]\n")
     state = publishing.State()
     assert publishing.reconcile(cfg, state, yes(cfg, "2026-10-19 - Manual")) == []
     assert state.approvals == {}
