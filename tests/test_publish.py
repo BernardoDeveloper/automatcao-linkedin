@@ -65,7 +65,9 @@ def test_a_due_approved_draft_is_published_and_recorded(make_config):
     events = run(cfg, state, client)
 
     assert client.posts == [(AUTHOR, "Post {hashtag|\\#|IA}", None)]
-    assert events == [("publicado", "2026-10-16 - Um", "https://www.linkedin.com/feed/update/urn:li:share:77/")]
+    assert events == [
+        ("publicado", "2026-10-16 - Um", "https://www.linkedin.com/feed/update/urn:li:share:77/")
+    ]
     assert meta(path)["status"] == "publicado"
     assert meta(path)["link"] == "https://www.linkedin.com/feed/update/urn:li:share:77/"
     assert state.approvals == {} and state.publishing == {}
@@ -154,7 +156,11 @@ def test_blocked_drafts_are_not_published(make_config):
 
     assert client.posts == []
     assert sorted(events) == [
-        ("bloqueado", "2026-10-16 - Longo", "post com 3001 caracteres, máximo 3000"),
+        (
+            "bloqueado",
+            "2026-10-16 - Longo",
+            "post com 3001 caracteres, máximo 3000; 1 achado(s) no checar",
+        ),
         ("bloqueado", "2026-10-16 - Sem imagem", "falta a imagem"),
         ("bloqueado", "2026-10-16 - Vazado", "1 achado(s) no checar"),
     ]

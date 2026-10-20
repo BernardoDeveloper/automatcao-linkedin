@@ -3,10 +3,13 @@
 import hashlib
 import json
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
+from typing import Protocol
 
-from linkedin_ia import check, drafts
+from linkedin_ia import check, drafts, little
 from linkedin_ia.config import Config
+from linkedin_ia.linkedin_api import ApiError, NoAnswer, post_url
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif")
 
@@ -141,4 +144,85 @@ def reconcile(
             events.append(("aprovado", stem))
             if write:
                 drafts.update(draft.path, {"status": "aprovado"})
+    return events
+
+
+class Publisher(Protocol):
+    def upload_image(self, owner: str, image: bytes) -> str: ...
+    def create_post(self, author: str, commentary: str, image: str | None = None) -> str: ...
+    def comment(self, post: str, actor: str, text: str) -> None: ...
+
+
+def is_due(draft: drafts.Draft, today: date) -> bool:
+    when = str(draft.meta.get("publicar_em") or "").strip()
+    try:
+        return not when or date.fromisoformat(when) <= today
+    except ValueError:
+        return False
+
+
+def publish_due(
+    config: Config,
+    state: State,
+    client: Publisher,
+    author: str,
+    today: date,
+    now: datetime,
+    write: bool = True,
+) -> list[tuple[str, str, str]]:
+    """Publish every approved draft whose date has come (R2), once."""
+    events = []
+    for draft in drafts.queue(config):
+        stem = draft.path.stem
+        if stem in state.publishing:
+            events.append(("verificar", stem, ""))
+            continue
+        if not is_approved(config, state, draft) or not is_due(draft, today):
+            continue
+        blocked = blockers(config, draft)
+        if blocked:
+            events.append(("bloqueado", stem, "; ".join(blocked)))
+            continue
+        if not write:
+            events.append(("publicaria", stem, ""))
+            continue
+        events.extend(_publish(config, state, draft, client, author, now))
+    return events
+
+
+def _publish(
+    config: Config, state: State, draft: drafts.Draft, client: Publisher, author: str, now: datetime
+) -> list[tuple[str, str, str]]:
+    stem = draft.path.stem
+    body = drafts.post_body(draft.path.read_text(encoding="utf-8"))
+    try:
+        image_path = find_image(config, draft)
+        image = client.upload_image(author, image_path.read_bytes()) if image_path else None
+    except (ApiError, NoAnswer) as error:
+        return [("erro", stem, str(error))]
+
+    state.publishing[stem] = now.isoformat()
+    save_state(config.publish_state_file, state)
+    try:
+        urn = client.create_post(author, little.commentary(body), image)
+    except ApiError as error:
+        del state.publishing[stem]
+        save_state(config.publish_state_file, state)
+        return [("erro", stem, str(error))]
+    except NoAnswer as error:
+        return [("sem_resposta", stem, str(error))]
+
+    link = post_url(urn)
+    drafts.update(draft.path, {"status": "publicado", "link": link})
+    del state.publishing[stem]
+    state.approvals.pop(stem, None)
+    save_state(config.publish_state_file, state)
+    events = [("publicado", stem, link)]
+
+    comment = _text(draft, "primeiro_comentario").strip()
+    if comment:
+        try:
+            client.comment(urn, author, comment)
+        except (ApiError, NoAnswer) as error:
+            events.append(("comentario_falhou", stem, str(error)))
     return events
