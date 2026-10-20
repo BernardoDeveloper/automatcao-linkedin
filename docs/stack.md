@@ -9,6 +9,10 @@ listed here is an open decision.
   only, `tomllib` for config, so the CLI has no runtime dependencies to keep current.
 - **Claude Code (`claude -p`)** — writes the drafts from the digest, see
   adr:0002-claude-code-headless-as-the-writer.
+- **LinkedIn REST API** (Posts, Images, Comments, `userinfo`; product "Share on LinkedIn") — the
+  only sanctioned way to post as a member, see adr:0003-publish-approved-drafts-through-the-linkedin-api;
+  called with `urllib`, so no HTTP dependency.
+- **notify-send** (libnotify) — desktop notifications; already on the Ubuntu desktop.
 - **systemd user timer** — the weekly run; already on the machine, survives reboots and
   catches up a missed run with `Persistent=true`.
 
