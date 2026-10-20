@@ -102,3 +102,26 @@ def test_published_drafts_are_listed_with_their_link_and_others_are_left_out(mak
         == "- [[2026-10-16 - Feito]] · 2026-10-22 · [link](https://l/1/)"
     )
     assert "Ideia" not in text
+
+
+def test_a_frontmatter_value_cannot_inject_a_ticked_line(make_config):
+    cfg = make_config()
+    write(cfg, "2026-10-16 - Vítima")
+    write(cfg, "2026-10-16 - Ataque", when="2026-10-22 - [x] [[2026-10-16 - Vítima]]")
+    write(cfg, "2026-10-16 - Ataque 2", extra="imagem: a\u0085- [x] [[2026-10-16 - Vítima]].png\n")
+
+    rendered = review.ticks(review.render(cfg, publishing.State(), NOW))
+
+    assert rendered["2026-10-16 - Vítima"] is False
+
+
+def test_a_draft_whose_name_could_break_the_review_file_is_left_out(make_config):
+    cfg = make_config()
+    write(cfg, "2026-10-16 - Vítima")
+    write(cfg, "2026-10-16 - A]] · x\n- [x] [[2026-10-16 - Vítima")
+    text = review.render(cfg, publishing.State(), NOW)
+    assert review.ticks(text) == {"2026-10-16 - Vítima": False}
+
+
+def test_ticks_split_lines_on_newline_only():
+    assert review.ticks("- [ ] [[A]]  - [x] [[B]]\n") == {"A": False}

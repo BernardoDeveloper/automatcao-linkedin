@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -12,6 +13,21 @@ from linkedin_ia.config import Config
 from linkedin_ia.linkedin_api import ApiError, NoAnswer, post_url
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif")
+UNSAFE_IN_NAME = set("[]|#^")
+
+
+def plain(text: str) -> bool:
+    """No control, format or line-separator character: nothing that can start a new line."""
+    return not any(unicodedata.category(c) in ("Cc", "Cf", "Zl", "Zp") for c in text)
+
+
+def queue(config: Config) -> list[drafts.Draft]:
+    """Drafts whose file name is safe to write as a wikilink line in the review file."""
+    return [
+        d
+        for d in drafts.queue(config)
+        if plain(d.path.stem) and not UNSAFE_IN_NAME & set(d.path.stem)
+    ]
 
 
 @dataclass
@@ -60,10 +76,21 @@ def image_name(draft: drafts.Draft) -> str:
     return _text(draft, "imagem").strip()
 
 
+def valid_image_name(name: str) -> bool:
+    """A bare file name with an image extension: nothing outside the images folder."""
+    return (
+        Path(name).name == name
+        and not name.startswith(".")
+        and "\\" not in name
+        and plain(name)
+        and Path(name).suffix.lower() in IMAGE_SUFFIXES
+    )
+
+
 def find_image(config: Config, draft: drafts.Draft) -> Path | None:
     """The draft's image in the images folder; another extension of the same stem counts."""
     name = image_name(draft)
-    if not name:
+    if not name or not valid_image_name(name):
         return None
     exact = config.images_dir / name
     if exact.is_file():
@@ -86,7 +113,9 @@ def blockers(config: Config, draft: drafts.Draft) -> list[str]:
     findings = check.check(draft.path, config)
     if findings:
         found.append(f"{len(findings)} achado(s) no checar")
-    if image_name(draft) and find_image(config, draft) is None:
+    if image_name(draft) and not valid_image_name(image_name(draft)):
+        found.append("nome de imagem inválido")
+    elif image_name(draft) and find_image(config, draft) is None:
         found.append("falta a imagem")
     return found
 
@@ -118,11 +147,11 @@ def reconcile(
 ) -> list[tuple[str, str]]:
     """Apply the review file's ticks and void approvals whose draft changed."""
     events = []
-    queue = {d.path.stem: d for d in drafts.queue(config)}
+    candidates = {d.path.stem: d for d in queue(config)}
     for stem in list(state.approvals):
-        if stem not in queue or queue[stem].group not in ("rascunho", "aprovado"):
+        if stem not in candidates or candidates[stem].group not in ("rascunho", "aprovado"):
             del state.approvals[stem]
-    for stem, draft in queue.items():
+    for stem, draft in candidates.items():
         if draft.group not in ("rascunho", "aprovado"):
             continue
         if mentions(draft):
@@ -172,7 +201,7 @@ def publish_due(
 ) -> list[tuple[str, str, str]]:
     """Publish every approved draft whose date has come (R2), once."""
     events = []
-    for draft in drafts.queue(config):
+    for draft in queue(config):
         stem = draft.path.stem
         if stem in state.publishing:
             if draft.group == "publicado" or stem not in state.approvals:

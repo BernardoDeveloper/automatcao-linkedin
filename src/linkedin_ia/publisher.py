@@ -40,7 +40,7 @@ def _review_text(config: Config) -> str:
 def _awaiting_review(config: Config, state: publishing.State) -> list[str]:
     return [
         d.path.stem
-        for d in drafts.queue(config)
+        for d in publishing.queue(config)
         if d.group in ("rascunho", "aprovado")
         and not publishing.mentions(d)
         and not publishing.is_approved(config, state, d)

@@ -240,3 +240,14 @@ def test_an_unanswered_draft_is_released_once_marked_published_or_unticked(make_
     publishing.reconcile(cfg, state, {"2026-10-16 - Dois": False})
     assert run(cfg, state, FakeClient()) == []
     assert state.publishing == {}
+
+
+def test_an_image_name_outside_the_images_folder_is_refused(make_config, tmp_path):
+    cfg = make_config()
+    (tmp_path / "segredo.png").write_bytes(b"S")
+    cfg.images_dir.mkdir(parents=True)
+    _, state = approved(cfg, "2026-10-16 - Um", extra="imagem: ../../../../../segredo.png\n")
+    client = FakeClient()
+    events = run(cfg, state, client)
+    assert client.images == [] and client.posts == []
+    assert events == [("bloqueado", "2026-10-16 - Um", "nome de imagem inválido")]
