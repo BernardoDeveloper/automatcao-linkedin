@@ -26,7 +26,7 @@ palavras_chave = [
 pasta = "02-Areas/Carreira/LinkedIn/Posts"
 # Where you tick the drafts that may be published, and where their images go.
 revisao = "02-Areas/Carreira/LinkedIn/Revisão de posts.md"
-imagens = "02-Areas/Carreira/LinkedIn/Posts/imagens"
+imagens = "02-Areas/Carreira/LinkedIn/Imagens"
 
 [linkedin]
 # LinkedIn-Version header (YYYYMM). LinkedIn retires a version about a year after release.

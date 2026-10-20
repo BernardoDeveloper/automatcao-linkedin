@@ -14,11 +14,11 @@ images in a folder; the only interruptions are desktop notifications. Supersedes
 
 ## R1 · Review file and approval
 
-- **R1.1** When the publish run starts, the publisher shall rewrite the review file, listing every draft with status `rascunho` or `aprovado` with its `publicar_em`, its image and what still blocks it.
+- **R1.1** When the publish run starts, the publisher shall rewrite the review file, listing every draft with status `rascunho` or `aprovado` with its version, its `publicar_em`, the start of its post body, its first comment, its image and what still blocks it.
 - **R1.2** The publisher shall list a draft awaiting review as an unticked checkbox and an approved draft as a ticked checkbox.
-- **R1.3** When the checkbox of a draft awaiting review is ticked in the review file, the publisher shall record an approval bound to a fingerprint of the post body, the first comment and the image, and set the draft's status to `aprovado`.
+- **R1.3** When the checkbox of a draft awaiting review is ticked in the review file and the version on its line matches the draft, the publisher shall record an approval bound to a fingerprint of the post body, the first comment, `publicar_em` and the image, and set the draft's status to `aprovado`.
 - **R1.4** When the checkbox of an approved draft is unticked in the review file, the publisher shall drop its approval and set its status back to `rascunho`.
-- **R1.5** If an approved draft's fingerprint no longer matches its approval, then the publisher shall drop the approval, set its status back to `rascunho` and notify that the draft changed after approval.
+- **R1.5** If an approved draft's fingerprint no longer matches its approval, or a ticked line shows an older version than the draft, then the publisher shall not approve it, shall drop any approval, set its status back to `rascunho` and notify that the draft changed.
 - **R1.6** If a draft has status `aprovado` without a recorded approval, then the publisher shall list it for review and shall not publish it.
 - **R1.7** Where a draft lists people in `mencoes`, the publisher shall list it under manual publishing and shall not publish it.
 - **R1.8** When a draft enters the review file for the first time, the publisher shall notify that a post awaits review.
@@ -29,7 +29,7 @@ images in a folder; the only interruptions are desktop notifications. Supersedes
 - **R2.2** When a post is published, the publisher shall set the draft's status to `publicado`, fill `link` with the post's URL and notify.
 - **R2.3** Where a published draft has `primeiro_comentario`, the publisher shall add it as a comment on the post.
 - **R2.4** If the first comment is rejected, then the publisher shall keep the draft as `publicado` and notify to add the comment by hand.
-- **R2.5** If an approved, due draft fails the confidentiality check, names an image that does not exist, or has an empty post body or one longer than 3000 characters, then the publisher shall not publish it and shall notify the reason once.
+- **R2.5** If an approved, due draft's post body or first comment fails the confidentiality check, it names an image that does not exist or is not a bare image file name, or its post body is empty or longer than 3000 characters, then the publisher shall not publish it and shall notify the reason once.
 - **R2.6** The publisher shall send the post body in LinkedIn's commentary format, with reserved characters escaped and hashtags kept as hashtags.
 - **R2.7** If LinkedIn refuses a publish request with a 4xx status, then the publisher shall keep the draft approved, notify the status and retry on the next run.
 - **R2.8** If a publish request ends without an answer, with a 5xx status or with an unreadable answer, then the publisher shall not publish that draft again and shall notify to check LinkedIn by hand.

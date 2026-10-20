@@ -26,6 +26,15 @@ UV="$(command -v uv)" || { echo "uv não está no PATH" >&2; exit 1; }
 read -r SECOND_BRAIN DRAFTS < <(cd "$REPO" && "$UV" run --quiet python -c \
   'from linkedin_ia import config; c = config.load(); print(c.second_brain, c.drafts_dir)')
 
+# The drafts agent may edit the drafts folder, so the review file and the images must live
+# outside it: otherwise it could tick its own drafts or swap an approved image.
+(cd "$REPO" && "$UV" run --quiet python -c '
+from linkedin_ia import config
+c = config.load()
+inside = [str(p) for p in (c.review_file, c.images_dir) if p.is_relative_to(c.drafts_dir)]
+raise SystemExit(f"dentro da pasta de rascunhos: {inside}" if inside else 0)
+')
+
 for path in "$REPO" "$SECOND_BRAIN" "$DRAFTS" "$CLAUDE" "$UV"; do
   if [[ "$path" =~ [[:space:]%\$\"\\] ]]; then
     echo "caminho com espaço ou caractere especial não suportado: $path" >&2

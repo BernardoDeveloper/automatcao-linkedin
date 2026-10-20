@@ -29,7 +29,7 @@ def test_drafts_dir_is_inside_the_second_brain(make_config, tmp_path):
 def test_publishing_settings_default_when_the_config_predates_them(make_config, tmp_path):
     cfg = make_config()
     assert cfg.review_file == tmp_path / "sb" / "02-Areas/Carreira/LinkedIn/Revisão de posts.md"
-    assert cfg.images_dir == tmp_path / "sb" / "02-Areas/Carreira/LinkedIn/Posts/imagens"
+    assert cfg.images_dir == tmp_path / "sb" / "02-Areas/Carreira/LinkedIn/Imagens"
     assert cfg.api_version == "202610"
     assert cfg.token_file == Path("~/.config/linkedin-ia/token.json").expanduser()
     assert cfg.publish_state_file == tmp_path / ".estado" / "publicacao.json"

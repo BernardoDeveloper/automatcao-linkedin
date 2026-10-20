@@ -142,6 +142,11 @@ def check(path: Path, config: Config) -> list[Finding]:
     return sorted(findings, key=lambda f: f.line)
 
 
+def text_findings(text: str, path: Path, config: Config) -> list[Finding]:
+    """The rules applied to a piece of text that is not a `## Post` section."""
+    return list(_section_findings(path, 1, text.splitlines(), config))
+
+
 def disabled_rules(config: Config) -> list[str]:
     """Rules that cannot fire because their list in config.toml is empty."""
     empty = []

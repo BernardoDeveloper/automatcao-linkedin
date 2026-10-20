@@ -35,7 +35,7 @@ uv run linkedin login                # paste a token, see below; again every 60 
 
 - Each run rewrites `Revisão de posts.md` next to the `Posts/` folder. Tick `[x]` to
   approve; untick to withdraw. Editing an approved post sends it back for review.
-- Images go in `Posts/imagens/` with the name the line shows (`.png`, `.jpg` or `.gif`).
+- Images go in `LinkedIn/Imagens/` with the name the line shows (`.png`, `.jpg` or `.gif`).
 - A post with `mencoes` is listed under manual publishing: the API cannot tag people.
 - A run publishes approved posts whose `publicar_em` is today or earlier (empty = now),
   fills `link`, sets `status: publicado` and adds `primeiro_comentario` as a comment.

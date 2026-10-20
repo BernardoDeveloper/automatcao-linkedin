@@ -8,6 +8,12 @@ from linkedin_ia.linkedin_api import Response
 NOW = datetime(2026, 10, 20, 9, 0).astimezone()
 
 
+def yes(cfg, stem):
+    """A tick on the line Bernardo saw: the draft's current version."""
+    draft = drafts.load(cfg.drafts_dir / f"{stem}.md")
+    return {stem: (True, publishing.version(publishing.fingerprint(cfg, draft)))}
+
+
 class Transport:
     def __init__(self):
         self.urls = []
@@ -80,7 +86,7 @@ def test_without_a_token_nothing_is_published_and_it_warns_once_a_day(make_confi
     cfg = setup(make_config, tmp_path, token_days=None)
     path = write(cfg, "2026-10-16 - Um")
     state = publishing.State()
-    publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
+    publishing.reconcile(cfg, state, yes(cfg, "2026-10-16 - Um"))
     publishing.save_state(cfg.publish_state_file, state)
     sent, transport = [], Transport()
 
@@ -165,7 +171,7 @@ def test_cli_simular_prints_what_would_happen_and_changes_nothing(
     cfg = setup(make_config, tmp_path)
     write(cfg, "2026-10-16 - Um")
     state = publishing.State()
-    publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
+    publishing.reconcile(cfg, state, yes(cfg, "2026-10-16 - Um"))
     publishing.save_state(cfg.publish_state_file, state)
     before = cfg.publish_state_file.read_text(encoding="utf-8")
     monkeypatch.setattr(cli.notify, "desktop", lambda text: (_ for _ in ()).throw(AssertionError))

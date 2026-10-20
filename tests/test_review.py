@@ -1,8 +1,14 @@
 from datetime import datetime
 
-from linkedin_ia import publishing, review
+from linkedin_ia import drafts, publishing, review
 
 NOW = datetime(2026, 10, 20, 9, 0)
+
+
+def yes(cfg, stem):
+    """A tick on the line Bernardo saw: the draft's current version."""
+    draft = drafts.load(cfg.drafts_dir / f"{stem}.md")
+    return {stem: (True, publishing.version(publishing.fingerprint(cfg, draft)))}
 
 
 def write(cfg, stem, status="rascunho", body="Texto do post", when="2026-10-22", extra=""):
@@ -14,6 +20,19 @@ def write(cfg, stem, status="rascunho", body="Texto do post", when="2026-10-22",
         encoding="utf-8",
     )
     return path
+
+
+def version(cfg, stem):
+    return publishing.version(
+        publishing.fingerprint(cfg, drafts.load(cfg.drafts_dir / f"{stem}.md"))
+    )
+
+
+def test_the_first_comment_and_a_long_body_are_shown_on_the_line(make_config):
+    cfg = make_config()
+    write(cfg, "2026-10-16 - Um", body="a" * 100, extra="primeiro_comentario: Link: https://x\n")
+    text = section(review.render(cfg, publishing.State(), NOW), "Para revisar")
+    assert f"“{'a' * 70}…” · comentário: “Link: https://x”" in text
 
 
 def section(text, title):
@@ -30,10 +49,15 @@ def test_drafts_awaiting_review_are_unticked_with_date_and_image(make_config):
     text = review.render(cfg, publishing.State(), NOW)
 
     waiting = section(text, "Para revisar")
-    assert "- [ ] [[2026-10-16 - Só texto]] · publicar em 2026-10-22 · só texto" in waiting
+    v1 = version(cfg, "2026-10-16 - Só texto")
+    v2 = version(cfg, "2026-10-16 - Com imagem")
     assert (
-        "- [ ] [[2026-10-16 - Com imagem]] · publicar em sem data · **falta a imagem** "
-        "`02-Areas/Carreira/LinkedIn/Posts/imagens/foto.png`" in waiting
+        f"- [ ] [[2026-10-16 - Só texto]] · v:{v1} · publicar em 2026-10-22 · “Texto do post” · "
+        "só texto" in waiting
+    )
+    assert (
+        f"- [ ] [[2026-10-16 - Com imagem]] · v:{v2} · publicar em sem data · “Texto do post” · "
+        "**falta a imagem** `02-Areas/Carreira/LinkedIn/Imagens/foto.png`" in waiting
     )
     assert section(text, "Aprovados") == "_nada_"
 
@@ -42,11 +66,14 @@ def test_approved_drafts_are_ticked_with_when_they_go_out(make_config):
     cfg = make_config()
     write(cfg, "2026-10-16 - Um")
     state = publishing.State()
-    publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
+    publishing.reconcile(cfg, state, yes(cfg, "2026-10-16 - Um"))
 
     text = review.render(cfg, state, NOW)
 
-    assert section(text, "Aprovados") == "- [x] [[2026-10-16 - Um]] · sai em 2026-10-22 · só texto"
+    v = version(cfg, "2026-10-16 - Um")
+    assert section(text, "Aprovados") == (
+        f"- [x] [[2026-10-16 - Um]] · v:{v} · sai em 2026-10-22 · “Texto do post” · só texto"
+    )
     assert section(text, "Para revisar") == "_nada_"
 
 
@@ -55,11 +82,14 @@ def test_ticks_read_back_from_the_rendered_file_keep_the_approvals(make_config):
     write(cfg, "2026-10-16 - Um")
     write(cfg, "2026-10-16 - Dois")
     state = publishing.State()
-    publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
+    publishing.reconcile(cfg, state, yes(cfg, "2026-10-16 - Um"))
 
     rendered = review.ticks(review.render(cfg, state, NOW))
 
-    assert rendered == {"2026-10-16 - Um": True, "2026-10-16 - Dois": False}
+    assert rendered == {
+        "2026-10-16 - Um": (True, version(cfg, "2026-10-16 - Um")),
+        "2026-10-16 - Dois": (False, version(cfg, "2026-10-16 - Dois")),
+    }
     assert publishing.reconcile(cfg, state, rendered) == []
 
 
@@ -85,10 +115,7 @@ def test_blockers_show_on_the_line(make_config):
     write(cfg, "2026-10-16 - Vazado", body="Veja ABC-1234")
     write(cfg, "2026-10-16 - Vazio", body="")
     text = section(review.render(cfg, publishing.State(), NOW), "Para revisar")
-    assert (
-        "[[2026-10-16 - Vazado]] · publicar em 2026-10-22 · só texto · **1 achado(s) no checar**"
-        in text
-    )
+    assert "“Veja ABC-1234” · só texto · **1 achado(s) no checar**" in text
     assert "**post vazio**" in text
 
 
@@ -112,7 +139,7 @@ def test_a_frontmatter_value_cannot_inject_a_ticked_line(make_config):
 
     rendered = review.ticks(review.render(cfg, publishing.State(), NOW))
 
-    assert rendered["2026-10-16 - Vítima"] is False
+    assert rendered["2026-10-16 - Vítima"][0] is False
 
 
 def test_a_draft_whose_name_could_break_the_review_file_is_left_out(make_config):
@@ -120,8 +147,10 @@ def test_a_draft_whose_name_could_break_the_review_file_is_left_out(make_config)
     write(cfg, "2026-10-16 - Vítima")
     write(cfg, "2026-10-16 - A]] · x\n- [x] [[2026-10-16 - Vítima")
     text = review.render(cfg, publishing.State(), NOW)
-    assert review.ticks(text) == {"2026-10-16 - Vítima": False}
+    assert review.ticks(text) == {
+        "2026-10-16 - Vítima": (False, version(cfg, "2026-10-16 - Vítima"))
+    }
 
 
 def test_ticks_split_lines_on_newline_only():
-    assert review.ticks("- [ ] [[A]] \u2028- [x] [[B]]\n") == {"A": False}
+    assert review.ticks("- [ ] [[A]] \u2028- [x] [[B]]\n") == {"A": (False, "")}

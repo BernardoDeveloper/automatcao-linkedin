@@ -7,16 +7,19 @@ from pathlib import Path
 from linkedin_ia import drafts, publishing
 from linkedin_ia.config import Config
 
-TICK = re.compile(r"^\s*- \[([ xX])\] \[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
+TICK = re.compile(
+    r"^\s*- \[([ xX])\] \[\[([^\]|]+)(?:\|[^\]]*)?\]\](?: · v:([0-9a-f]{12})(?= |$))?"
+)
+PREVIEW = 70
 
 
-def ticks(text: str) -> dict[str, bool]:
-    """Each checkbox line's draft stem, and whether it is ticked."""
+def ticks(text: str) -> dict[str, tuple[bool, str]]:
+    """Each checkbox line's draft stem: whether it is ticked, and the version it shows."""
     found = {}
     for line in text.split("\n"):
         match = TICK.match(line)
         if match:
-            found[match.group(2).strip()] = match.group(1) != " "
+            found[match.group(2).strip()] = (match.group(1) != " ", match.group(3) or "")
     return found
 
 
@@ -34,6 +37,11 @@ def _shown(config: Config, path: Path) -> str:
         return path.relative_to(config.second_brain).as_posix()
     except ValueError:
         return str(path)
+
+
+def _quote(text: str) -> str:
+    line = " ".join(_clean(text).split())
+    return f"“{line[:PREVIEW]}…”" if len(line) > PREVIEW else f"“{line}”"
 
 
 def _image(config: Config, draft: drafts.Draft) -> str:
@@ -61,16 +69,23 @@ def render(config: Config, state: publishing.State, now: datetime) -> str:
             names = _clean(", ".join(publishing.mentions(draft)))
             manual.append(f"- [[{stem}]] · marcar: {names}")
         else:
-            blocked = publishing.blockers(config, draft)
+            snap = publishing.snapshot(config, draft)
+            blocked = publishing.blockers_of(config, snap)
             image_notes = ("falta a imagem", "nome de imagem inválido")
-            notes = [_image(config, draft), *(f"**{b}**" for b in blocked if b not in image_notes)]
-            if publishing.is_approved(config, state, draft):
-                when = _when(draft)
+            notes = [
+                _quote(snap.body),
+                *([f"comentário: {_quote(snap.comment)}"] if snap.comment else []),
+                _image(config, draft),
+                *(f"**{b}**" for b in blocked if b not in image_notes),
+            ]
+            head = f"[[{stem}]] · v:{publishing.version(snap.fingerprint)}"
+            when = _when(draft)
+            if state.approvals.get(stem) == snap.fingerprint:
                 notes.insert(0, f"sai em {when}" if when else "sai na próxima rodada")
-                approved.append((when or "0000", f"- [x] [[{stem}]] · {' · '.join(notes)}"))
+                approved.append((when or "0000", f"- [x] {head} · {' · '.join(notes)}"))
             else:
-                notes.insert(0, f"publicar em {_when(draft) or 'sem data'}")
-                waiting.append((_when(draft) or "9999", f"- [ ] [[{stem}]] · {' · '.join(notes)}"))
+                notes.insert(0, f"publicar em {when or 'sem data'}")
+                waiting.append((when or "9999", f"- [ ] {head} · {' · '.join(notes)}"))
 
     published.sort(key=lambda d: _when(d), reverse=True)
     folder = _shown(config, config.images_dir)
@@ -84,8 +99,9 @@ def render(config: Config, state: publishing.State, now: datetime) -> str:
         "# Revisão de posts do LinkedIn",
         "",
         "Marque `[x]` para aprovar: o post sai sozinho no `publicar_em` (vazio = na próxima "
-        "rodada, de hora em hora das 9h às 18h). Desmarque para tirar da fila. Editar um post "
-        "aprovado devolve ele para cá.",
+        "rodada, de hora em hora das 9h às 18h). Desmarque para tirar da fila. A marca vale "
+        "para a versão `v:` da linha: se o post mudar antes ou depois de marcar, ele volta "
+        "para cá.",
         f"Imagens vão em `{folder}/`, com o nome que aparece na linha. Coloque a imagem antes "
         "de marcar: trocar a imagem de um post aprovado também devolve ele para cá.",
         "",

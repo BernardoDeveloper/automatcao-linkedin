@@ -6,7 +6,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 API = "https://api.linkedin.com"
 
@@ -33,9 +33,19 @@ class NoAnswer(Exception):
     """No answer, a server error (5xx) or an unreadable one: whether it took effect is unknown."""
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect would carry the token elsewhere: refuse it."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def urllib_transport(request: urllib.request.Request) -> Response:
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with _OPENER.open(request, timeout=60) as response:
             headers = {k.lower(): v for k, v in response.headers.items()}
             return Response(response.status, headers, response.read())
     except urllib.error.HTTPError as error:
@@ -78,7 +88,7 @@ class Client:
         response = self._transport(
             urllib.request.Request(url, data=data, headers=headers, method=method)
         )
-        if response.status >= 500:
+        if response.status >= 500 or 300 <= response.status < 400:
             raise NoAnswer(f"HTTP {response.status}: {_message(response.body)}")
         if response.status >= 400:
             raise ApiError(response.status, _message(response.body))
@@ -97,6 +107,12 @@ class Client:
             {"initializeUploadRequest": {"owner": owner}},
         )
         value = json.loads(init.body)["value"]
+        upload = urlsplit(value["uploadUrl"])
+        host = upload.hostname or ""
+        if upload.scheme != "https" or not (
+            host == "linkedin.com" or host.endswith(".linkedin.com")
+        ):
+            raise ApiError(0, f"uploadUrl fora do LinkedIn: {host}")
         self._send("PUT", value["uploadUrl"], data=image, rest=False)
         return str(value["image"])
 

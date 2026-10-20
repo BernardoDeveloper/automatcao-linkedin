@@ -8,6 +8,12 @@ NOW = datetime(2026, 10, 20, 9, 0).astimezone()
 AUTHOR = "urn:li:person:p"
 
 
+def yes(cfg, stem):
+    """A tick on the line Bernardo saw: the draft's current version."""
+    draft = drafts.load(cfg.drafts_dir / f"{stem}.md")
+    return {stem: (True, publishing.version(publishing.fingerprint(cfg, draft)))}
+
+
 class FakeClient:
     def __init__(self, post=None, comment=None, image=None, on_post=None):
         self.post_result = post or "urn:li:share:1"
@@ -45,7 +51,7 @@ def approved(cfg, stem, body="Post #IA", when="2026-10-20", extra=""):
         encoding="utf-8",
     )
     state = publishing.State()
-    publishing.reconcile(cfg, state, {stem: True})
+    publishing.reconcile(cfg, state, yes(cfg, stem))
     return path, state
 
 
@@ -117,7 +123,7 @@ def test_the_image_is_uploaded_and_attached(make_config):
     cfg.images_dir.mkdir(parents=True)
     (cfg.images_dir / "foto.jpg").write_bytes(b"JPG")
     state.approvals.clear()
-    publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
+    publishing.reconcile(cfg, state, yes(cfg, "2026-10-16 - Um"))
     client = FakeClient()
 
     run(cfg, state, client)
@@ -185,7 +191,7 @@ def test_a_failed_image_upload_publishes_nothing_and_retries(make_config):
     cfg.images_dir.mkdir(parents=True)
     (cfg.images_dir / "foto.png").write_bytes(b"P")
     state.approvals.clear()
-    publishing.reconcile(cfg, state, {"2026-10-16 - Um": True})
+    publishing.reconcile(cfg, state, yes(cfg, "2026-10-16 - Um"))
     client = FakeClient(image=NoAnswer("timeout"))
     assert run(cfg, state, client)[0][0] == "erro"
     assert client.posts == [] and state.publishing == {}
@@ -237,7 +243,7 @@ def test_an_unanswered_draft_is_released_once_marked_published_or_unticked(make_
 
     path, state = approved(cfg, "2026-10-16 - Dois")
     run(cfg, state, FakeClient(post=NoAnswer("timed out")))
-    publishing.reconcile(cfg, state, {"2026-10-16 - Dois": False})
+    publishing.reconcile(cfg, state, {"2026-10-16 - Dois": (False, "")})
     assert run(cfg, state, FakeClient()) == []
     assert state.publishing == {}
 
@@ -251,3 +257,12 @@ def test_an_image_name_outside_the_images_folder_is_refused(make_config, tmp_pat
     events = run(cfg, state, client)
     assert client.images == [] and client.posts == []
     assert events == [("bloqueado", "2026-10-16 - Um", "nome de imagem inválido")]
+
+
+def test_a_first_comment_failing_the_check_blocks_the_post(make_config):
+    cfg = make_config()
+    _, state = approved(cfg, "2026-10-16 - Um", extra="primeiro_comentario: veja ABC-1234\n")
+    client = FakeClient()
+    events = run(cfg, state, client)
+    assert client.posts == []
+    assert events == [("bloqueado", "2026-10-16 - Um", "primeiro comentário com achado no checar")]

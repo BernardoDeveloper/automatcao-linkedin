@@ -21,8 +21,12 @@ New modules under `src/linkedin_ia/`:
 
 - `little.py` — `commentary(body)`: escapes `| { } @ [ ] ( ) < > # \ * _ ~` with a
   backslash and turns each `#Word` at a word start into `{hashtag|\#|Word}` (R2.6).
-- `review.py` — reads ticks (`- [x] [[<draft stem>]]` / `- [ ] [[<draft stem>]]`) and
-  renders the review file. A draft is keyed by its file stem.
+- `review.py` — reads ticks (`- [x] [[<draft stem>]] · v:<version>`) and renders the
+  review file. A draft is keyed by its file stem; the version is the first 12 hex digits
+  of its fingerprint, anchored right after the wikilink so no value later on the line can
+  forge it. Lines are split on `\n` only, and every value written on a line has control
+  and line-separator characters replaced; drafts whose stem holds one, or `[ ] | # ^`,
+  are left out.
 - `linkedin_api.py` — the HTTP client over `urllib`, with the transport injected so
   tests never reach the network. Every call sends `Authorization: Bearer`,
   `LinkedIn-Version` and `X-Restli-Protocol-Version: 2.0.0`.
@@ -37,11 +41,14 @@ rewrites given frontmatter keys in place and leaves every other line untouched.
 | Step | Request |
 |---|---|
 | member | `GET https://api.linkedin.com/v2/userinfo` (scopes `openid profile`) |
-| image | `POST /rest/images?action=initializeUpload` with `owner` = person URN, then `PUT` the bytes to `uploadUrl` |
+| image | `POST /rest/images?action=initializeUpload` with `owner` = person URN, then `PUT` the bytes to `uploadUrl`, refused unless it is `https` on `linkedin.com` |
 | post | `POST /rest/posts`: `author`, `commentary`, `visibility: PUBLIC`, `distribution.feedDistribution: MAIN_FEED`, `lifecycleState: PUBLISHED`, `content.media.id` when there is an image; the post URN comes back in `x-restli-id` |
 | comment | `POST /rest/socialActions/{post urn}/comments` with `actor`, `object`, `message.text` |
 
-The link is `https://www.linkedin.com/feed/update/<post urn>/`. The comment endpoint
+The link is `https://www.linkedin.com/feed/update/<post urn>/`. Redirects are never
+followed, so the token goes nowhere else. A 4xx is a refusal (`ApiError`, retried next
+run); a 5xx, a redirect, a broken answer or none at all is an unknown outcome
+(`NoAnswer`, never retried for a post). The comment endpoint
 lists `w_member_social_feed` while the Posts API says `w_member_social` covers comments;
 which one a token generated for "Share on LinkedIn" carries is unverified, hence R2.4.
 
@@ -60,7 +67,7 @@ Config, all optional with these defaults:
 ```toml
 [rascunhos]
 revisao = "02-Areas/Carreira/LinkedIn/Revisão de posts.md"   # relative to second_brain
-imagens = "02-Areas/Carreira/LinkedIn/Posts/imagens"
+imagens = "02-Areas/Carreira/LinkedIn/Imagens"
 
 [linkedin]
 versao = "202610"                                # LinkedIn-Version header, YYYYMM
@@ -81,7 +88,11 @@ State in `.estado/publicacao.json`:
 }
 ```
 
-The fingerprint is SHA-256 over the post body, the first comment and the image bytes.
+The fingerprint is SHA-256 over the post body, the first comment, `publicar_em`, the
+image name and the image bytes, taken from one read of the draft (`publishing.snapshot`);
+the checks and the request use that same read. `imagem` must be a bare file name with an
+image extension. The images folder defaults outside the drafts folder, and the installer
+refuses a config that puts the images or the review file inside it.
 `publicando` is written before the post request and removed once the draft is updated;
 an entry left behind means the request never answered (R2.8). `avisados` holds one key
 per notification already sent: draft keys (R1.8, R2.5) carry no date, the token keys
@@ -93,6 +104,10 @@ per notification already sent: draft keys (R1.8, R2.5) carry no date, the token 
   can write drafts, so it could write `status: aprovado` itself. The review file sits
   outside its write grant and the approval lives in `.estado/`, bound to a fingerprint,
   so an edit after approval — by anyone — sends the draft back to review.
+- **Fingerprint taken when the run sees the tick.** Rejected in review: the agent could
+  rewrite a ticked draft between the tick and the next run (the weekly run is followed by
+  the publisher). The tick approves the version printed on its line, which is what
+  Bernardo read.
 - **Local OAuth flow** (`client_id`/`client_secret` plus a callback server on
   `localhost`). Rejected for now: LinkedIn issues no refresh token to self-serve apps, so
   it still means a browser login every 60 days, and it adds a stored secret and a

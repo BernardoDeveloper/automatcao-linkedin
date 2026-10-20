@@ -12,4 +12,6 @@ def desktop(text: str) -> None:
     command = shutil.which("notify-send")
     if command is None:
         return
-    subprocess.run([command, "--app-name=linkedin", "LinkedIn", text], check=False, timeout=10)
+    subprocess.run(
+        [command, "--app-name=linkedin", "--", "LinkedIn", text], check=False, timeout=10
+    )

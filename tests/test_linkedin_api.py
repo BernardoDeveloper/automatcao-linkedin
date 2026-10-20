@@ -66,7 +66,14 @@ def test_create_post_attaches_the_image():
 
 
 def test_upload_image_initializes_then_puts_the_bytes():
-    init = ok({"value": {"uploadUrl": "https://up.example/x", "image": "urn:li:image:I"}})
+    init = ok(
+        {
+            "value": {
+                "uploadUrl": "https://www.linkedin.com/dms-uploads/x",
+                "image": "urn:li:image:I",
+            }
+        }
+    )
     fake = Fake(init, Response(201, {}, b""))
     assert Client("tok", "202610", fake).upload_image("urn:li:person:p", b"PNG") == "urn:li:image:I"
     first, second = fake.requests
@@ -74,7 +81,7 @@ def test_upload_image_initializes_then_puts_the_bytes():
     assert sent(first) == {"initializeUploadRequest": {"owner": "urn:li:person:p"}}
     assert (second.get_method(), second.full_url, second.data) == (
         "PUT",
-        "https://up.example/x",
+        "https://www.linkedin.com/dms-uploads/x",
         b"PNG",
     )
     assert second.get_header("Authorization") == "Bearer tok"
@@ -113,7 +120,7 @@ def test_a_network_failure_is_no_answer(monkeypatch):
     def fail(request, timeout):
         raise urllib.error.URLError("timed out")
 
-    monkeypatch.setattr(linkedin_api.urllib.request, "urlopen", fail)
+    monkeypatch.setattr(linkedin_api._OPENER, "open", fail)
     with pytest.raises(NoAnswer):
         linkedin_api.urllib_transport(linkedin_api.urllib.request.Request("https://x"))
 
@@ -136,6 +143,26 @@ def test_a_broken_http_answer_is_no_answer(monkeypatch):
     def fail(request, timeout):
         raise http.client.IncompleteRead(b"")
 
-    monkeypatch.setattr(linkedin_api.urllib.request, "urlopen", fail)
+    monkeypatch.setattr(linkedin_api._OPENER, "open", fail)
     with pytest.raises(NoAnswer):
         linkedin_api.urllib_transport(linkedin_api.urllib.request.Request("https://x"))
+
+
+def test_an_upload_url_outside_linkedin_is_refused_before_sending_the_token():
+    for url in (
+        "https://evil.example/x",
+        "http://www.linkedin.com/x",
+        "https://linkedin.com.evil/x",
+    ):
+        init = ok({"value": {"uploadUrl": url, "image": "urn:li:image:I"}})
+        fake = Fake(init)
+        with pytest.raises(ApiError):
+            Client("tok", "202610", fake).upload_image("urn:li:person:p", b"PNG")
+        assert len(fake.requests) == 1
+
+
+def test_a_redirect_is_not_followed(monkeypatch):
+    assert any(isinstance(h, linkedin_api._NoRedirect) for h in linkedin_api._OPENER.handlers)
+    fake = Fake(Response(302, {"location": "https://evil.example"}, b""))
+    with pytest.raises(NoAnswer):
+        Client("tok", "202610", fake).create_post("urn:li:person:p", "Oi")

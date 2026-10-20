@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_REVIEW = "02-Areas/Carreira/LinkedIn/Revisão de posts.md"
-DEFAULT_IMAGES = "02-Areas/Carreira/LinkedIn/Posts/imagens"
+DEFAULT_IMAGES = "02-Areas/Carreira/LinkedIn/Imagens"
 DEFAULT_API_VERSION = "202610"
 DEFAULT_TOKEN = "~/.config/linkedin-ia/token.json"
 

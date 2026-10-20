@@ -102,34 +102,66 @@ def find_image(config: Config, draft: drafts.Draft) -> Path | None:
     return None
 
 
-def blockers(config: Config, draft: drafts.Draft) -> list[str]:
-    """What keeps an approved draft from going out (R2.5), in the words of the review file."""
+@dataclass(frozen=True)
+class Snapshot:
+    """One read of a draft: what is checked, fingerprinted and sent all comes from it."""
+
+    draft: drafts.Draft
+    body: str
+    comment: str
+    image_name: str
+    image: bytes | None
+    fingerprint: str
+
+
+def snapshot(config: Config, draft: drafts.Draft) -> Snapshot:
+    text = draft.path.read_text(encoding="utf-8")
+    current = drafts.Draft(draft.path, drafts.frontmatter(text))
+    body = drafts.post_body(text)
+    comment = _text(current, "primeiro_comentario").strip()
+    when = _text(current, "publicar_em").strip()
+    name = image_name(current)
+    found = find_image(config, current)
+    image = found.read_bytes() if found is not None else None
+    digest = hashlib.sha256()
+    for part in (body, comment, when, name):
+        digest.update(part.encode() + b"\0")
+    digest.update(image or b"")
+    return Snapshot(current, body, comment, name, image, digest.hexdigest())
+
+
+def fingerprint(config: Config, draft: drafts.Draft) -> str:
+    """What an approval vouches for: post body, first comment, date and image."""
+    return snapshot(config, draft).fingerprint
+
+
+def version(fingerprint: str) -> str:
+    """The short form of a fingerprint written on each review-file line."""
+    return fingerprint[:12]
+
+
+def blockers_of(config: Config, snap: Snapshot) -> list[str]:
+    """What keeps a draft from going out (R2.5), in the words of the review file."""
     found = []
-    body = drafts.post_body(draft.path.read_text(encoding="utf-8"))
-    if not body.strip():
+    if not snap.body.strip():
         found.append("post vazio")
-    elif len(body) > check.MAX_LENGTH:
-        found.append(f"post com {len(body)} caracteres, máximo {check.MAX_LENGTH}")
-    findings = check.check(draft.path, config)
+    elif len(snap.body) > check.MAX_LENGTH:
+        found.append(f"post com {len(snap.body)} caracteres, máximo {check.MAX_LENGTH}")
+    path = snap.draft.path
+    findings = len(check.text_findings(snap.body, path, config))
     if findings:
-        found.append(f"{len(findings)} achado(s) no checar")
-    if image_name(draft) and not valid_image_name(image_name(draft)):
+        found.append(f"{findings} achado(s) no checar")
+    if snap.comment and check.text_findings(snap.comment, path, config):
+        found.append("primeiro comentário com achado no checar")
+    if snap.image_name and not valid_image_name(snap.image_name):
         found.append("nome de imagem inválido")
-    elif image_name(draft) and find_image(config, draft) is None:
+    elif snap.image_name and snap.image is None:
         found.append("falta a imagem")
     return found
 
 
-def fingerprint(config: Config, draft: drafts.Draft) -> str:
-    """What an approval vouches for: the post body, the first comment and the image."""
-    digest = hashlib.sha256()
-    digest.update(drafts.post_body(draft.path.read_text(encoding="utf-8")).encode())
-    digest.update(b"\0" + _text(draft, "primeiro_comentario").strip().encode() + b"\0")
-    digest.update(image_name(draft).encode() + b"\0")
-    image = find_image(config, draft)
-    if image is not None:
-        digest.update(image.read_bytes())
-    return digest.hexdigest()
+def blockers(config: Config, draft: drafts.Draft) -> list[str]:
+    return blockers_of(config, snapshot(config, draft))
 
 
 def is_approved(config: Config, state: State, draft: drafts.Draft) -> bool:
@@ -143,9 +175,13 @@ def is_approved(config: Config, state: State, draft: drafts.Draft) -> bool:
 
 
 def reconcile(
-    config: Config, state: State, ticks: dict[str, bool], write: bool = True
+    config: Config, state: State, ticks: dict[str, tuple[bool, str]], write: bool = True
 ) -> list[tuple[str, str]]:
-    """Apply the review file's ticks and void approvals whose draft changed."""
+    """Apply the review file's ticks and void approvals whose draft changed.
+
+    A tick only approves the version written on its line, which is what Bernardo read: a
+    draft changed after the review file was written is not approved by an old tick.
+    """
     events = []
     candidates = {d.path.stem: d for d in queue(config)}
     for stem in list(state.approvals):
@@ -157,10 +193,12 @@ def reconcile(
         if mentions(draft):
             state.approvals.pop(stem, None)
             continue
+        current = fingerprint(config, draft)
+        ticked, seen = ticks.get(stem, (None, ""))
         if stem in state.approvals:
-            if state.approvals[stem] != fingerprint(config, draft):
+            if state.approvals[stem] != current:
                 kind = "alterado"
-            elif ticks.get(stem) is False:
+            elif ticked is False:
                 kind = "desaprovado"
             else:
                 continue
@@ -168,8 +206,10 @@ def reconcile(
             events.append((kind, stem))
             if write:
                 drafts.update(draft.path, {"status": "rascunho"})
-        elif ticks.get(stem):
-            state.approvals[stem] = fingerprint(config, draft)
+        elif ticked and seen != version(current):
+            events.append(("alterado", stem))
+        elif ticked:
+            state.approvals[stem] = current
             events.append(("aprovado", stem))
             if write:
                 drafts.update(draft.path, {"status": "aprovado"})
@@ -209,34 +249,37 @@ def publish_due(
             else:
                 events.append(("verificar", stem, ""))
             continue
-        if not is_approved(config, state, draft) or not is_due(draft, today):
+        snap = snapshot(config, draft)
+        if (
+            mentions(snap.draft)
+            or state.approvals.get(stem) != snap.fingerprint
+            or not is_due(snap.draft, today)
+        ):
             continue
-        blocked = blockers(config, draft)
+        blocked = blockers_of(config, snap)
         if blocked:
             events.append(("bloqueado", stem, "; ".join(blocked)))
             continue
         if not write:
             events.append(("publicaria", stem, ""))
             continue
-        events.extend(_publish(config, state, draft, client, author, now))
+        events.extend(_publish(config, state, snap, client, author, now))
     return events
 
 
 def _publish(
-    config: Config, state: State, draft: drafts.Draft, client: Publisher, author: str, now: datetime
+    config: Config, state: State, snap: Snapshot, client: Publisher, author: str, now: datetime
 ) -> list[tuple[str, str, str]]:
-    stem = draft.path.stem
-    body = drafts.post_body(draft.path.read_text(encoding="utf-8"))
+    draft, stem = snap.draft, snap.draft.path.stem
     try:
-        image_path = find_image(config, draft)
-        image = client.upload_image(author, image_path.read_bytes()) if image_path else None
+        image = client.upload_image(author, snap.image) if snap.image is not None else None
     except (ApiError, NoAnswer, KeyError, ValueError) as error:
         return [("erro", stem, str(error))]
 
     state.publishing[stem] = now.isoformat()
     save_state(config.publish_state_file, state)
     try:
-        urn = client.create_post(author, little.commentary(body), image)
+        urn = client.create_post(author, little.commentary(snap.body), image)
     except ApiError as error:
         del state.publishing[stem]
         save_state(config.publish_state_file, state)
@@ -251,10 +294,9 @@ def _publish(
     save_state(config.publish_state_file, state)
     events = [("publicado", stem, link)]
 
-    comment = _text(draft, "primeiro_comentario").strip()
-    if comment:
+    if snap.comment:
         try:
-            client.comment(urn, author, comment)
+            client.comment(urn, author, snap.comment)
         except (ApiError, NoAnswer) as error:
             events.append(("comentario_falhou", stem, str(error)))
     return events
