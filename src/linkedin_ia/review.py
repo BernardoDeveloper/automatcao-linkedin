@@ -1,6 +1,10 @@
 """The review file: where Bernardo ticks the drafts that may be published."""
 
 import re
+from datetime import datetime
+
+from linkedin_ia import drafts, publishing
+from linkedin_ia.config import Config
 
 TICK = re.compile(r"^\s*- \[([ xX])\] \[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 
@@ -13,3 +17,82 @@ def ticks(text: str) -> dict[str, bool]:
         if match:
             found[match.group(2).strip()] = match.group(1) != " "
     return found
+
+
+def _when(draft: drafts.Draft) -> str:
+    return str(draft.meta.get("publicar_em") or "").strip()
+
+
+def _image(config: Config, draft: drafts.Draft) -> str:
+    name = publishing.image_name(draft)
+    if not name:
+        return "só texto"
+    found = publishing.find_image(config, draft)
+    if found is not None:
+        return f"imagem: `{found.name}`"
+    folder = config.images_dir.relative_to(config.second_brain).as_posix()
+    return f"**falta a imagem** `{folder}/{name}`"
+
+
+def render(config: Config, state: publishing.State, now: datetime) -> str:
+    """The whole review file, rewritten on every publish run."""
+    waiting, approved, manual, published = [], [], [], []
+    for draft in drafts.queue(config):
+        stem = draft.path.stem
+        if draft.group == "publicado":
+            published.append(draft)
+        elif draft.group not in ("rascunho", "aprovado"):
+            continue
+        elif publishing.mentions(draft):
+            manual.append(f"- [[{stem}]] · marcar: {', '.join(publishing.mentions(draft))}")
+        else:
+            blocked = publishing.blockers(config, draft)
+            notes = [_image(config, draft), *(f"**{b}**" for b in blocked if b != "falta a imagem")]
+            if publishing.is_approved(config, state, draft):
+                when = _when(draft)
+                notes.insert(0, f"sai em {when}" if when else "sai na próxima rodada")
+                approved.append((when or "0000", f"- [x] [[{stem}]] · {' · '.join(notes)}"))
+            else:
+                notes.insert(0, f"publicar em {_when(draft) or 'sem data'}")
+                waiting.append((_when(draft) or "9999", f"- [ ] [[{stem}]] · {' · '.join(notes)}"))
+
+    published.sort(key=lambda d: _when(d), reverse=True)
+    folder = config.images_dir.relative_to(config.second_brain).as_posix()
+    lines = [
+        "---",
+        "tipo: revisao",
+        "area: Carreira",
+        f"atualizado: {now:%Y-%m-%d %H:%M}",
+        "tags: [linkedin, revisao]",
+        "---",
+        "# Revisão de posts do LinkedIn",
+        "",
+        "Marque `[x]` para aprovar: o post sai sozinho no `publicar_em` (vazio = na próxima "
+        "rodada, de hora em hora das 9h às 18h). Desmarque para tirar da fila. Editar um post "
+        "aprovado devolve ele para cá.",
+        f"Imagens vão em `{folder}/`, com o nome que aparece na linha.",
+        "",
+        "## Para revisar",
+        *([line for _, line in sorted(waiting)] or ["_nada_"]),
+        "",
+        "## Aprovados",
+        *([line for _, line in sorted(approved)] or ["_nada_"]),
+        "",
+        "## Publicar manualmente (marcação de pessoas)",
+        *(manual or ["_nada_"]),
+        "",
+        "## Publicados",
+        *(
+            [
+                f"- [[{d.path.stem}]] · {_when(d) or 'sem data'}"
+                + (f" · [link]({d.meta['link']})" if d.meta.get("link") else "")
+                for d in published[:10]
+            ]
+            or ["_nada_"]
+        ),
+        "",
+        "## Relacionado",
+        "- [[LinkedIn]]",
+        "",
+    ]
+    return "\n".join(lines)

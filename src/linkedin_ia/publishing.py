@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from linkedin_ia import drafts
+from linkedin_ia import check, drafts
 from linkedin_ia.config import Config
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif")
@@ -70,6 +70,22 @@ def find_image(config: Config, draft: drafts.Draft) -> Path | None:
         if other.is_file():
             return other
     return None
+
+
+def blockers(config: Config, draft: drafts.Draft) -> list[str]:
+    """What keeps an approved draft from going out (R2.5), in the words of the review file."""
+    found = []
+    body = drafts.post_body(draft.path.read_text(encoding="utf-8"))
+    if not body.strip():
+        found.append("post vazio")
+    elif len(body) > check.MAX_LENGTH:
+        found.append(f"post com {len(body)} caracteres, máximo {check.MAX_LENGTH}")
+    findings = check.check(draft.path, config)
+    if findings:
+        found.append(f"{len(findings)} achado(s) no checar")
+    if image_name(draft) and find_image(config, draft) is None:
+        found.append("falta a imagem")
+    return found
 
 
 def fingerprint(config: Config, draft: drafts.Draft) -> str:
