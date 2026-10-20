@@ -13,6 +13,9 @@ from linkedin_ia.config import Config
 from linkedin_ia.linkedin_api import ApiError, NoAnswer, post_url
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif")
+# 128 bits on the review-file line: forging a tick by collision costs about 2^64 hashes.
+VERSION_LENGTH = 32
+COMMENT_MAX_LENGTH = 1250
 UNSAFE_IN_NAME = set("[]|#^")
 
 
@@ -26,7 +29,7 @@ def queue(config: Config) -> list[drafts.Draft]:
     return [
         d
         for d in drafts.queue(config)
-        if plain(d.path.stem) and not UNSAFE_IN_NAME & set(d.path.stem)
+        if plain(d.path.stem) and not UNSAFE_IN_NAME & set(d.path.stem) and not d.path.is_symlink()
     ]
 
 
@@ -35,6 +38,7 @@ class State:
     approvals: dict[str, str] = field(default_factory=dict)
     publishing: dict[str, str] = field(default_factory=dict)
     notified: set[str] = field(default_factory=set)
+    published: set[str] = field(default_factory=set)
 
 
 def load_state(path: Path) -> State:
@@ -46,6 +50,7 @@ def load_state(path: Path) -> State:
         dict(data.get("aprovacoes", {})),
         dict(data.get("publicando", {})),
         set(data.get("avisados", [])),
+        set(data.get("publicados", [])),
     )
 
 
@@ -55,6 +60,7 @@ def save_state(path: Path, state: State) -> None:
         "aprovacoes": state.approvals,
         "publicando": state.publishing,
         "avisados": sorted(state.notified),
+        "publicados": sorted(state.published),
     }
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -92,13 +98,10 @@ def find_image(config: Config, draft: drafts.Draft) -> Path | None:
     name = image_name(draft)
     if not name or not valid_image_name(name):
         return None
-    exact = config.images_dir / name
-    if exact.is_file():
-        return exact
-    for suffix in IMAGE_SUFFIXES:
-        other = config.images_dir / (Path(name).stem + suffix)
-        if other.is_file():
-            return other
+    for candidate in (name, *(Path(name).stem + suffix for suffix in IMAGE_SUFFIXES)):
+        path = config.images_dir / candidate
+        if path.is_file() and not path.is_symlink():
+            return path
     return None
 
 
@@ -123,9 +126,7 @@ def snapshot(config: Config, draft: drafts.Draft) -> Snapshot:
     name = image_name(current)
     found = find_image(config, current)
     image = found.read_bytes() if found is not None else None
-    digest = hashlib.sha256()
-    for part in (body, comment, when, name):
-        digest.update(part.encode() + b"\0")
+    digest = hashlib.sha256(json.dumps([body, comment, when, name]).encode())
     digest.update(image or b"")
     return Snapshot(current, body, comment, name, image, digest.hexdigest())
 
@@ -137,7 +138,7 @@ def fingerprint(config: Config, draft: drafts.Draft) -> str:
 
 def version(fingerprint: str) -> str:
     """The short form of a fingerprint written on each review-file line."""
-    return fingerprint[:12]
+    return fingerprint[:VERSION_LENGTH]
 
 
 def blockers_of(config: Config, snap: Snapshot) -> list[str]:
@@ -148,11 +149,17 @@ def blockers_of(config: Config, snap: Snapshot) -> list[str]:
     elif len(snap.body) > check.MAX_LENGTH:
         found.append(f"post com {len(snap.body)} caracteres, máximo {check.MAX_LENGTH}")
     path = snap.draft.path
-    findings = len(check.text_findings(snap.body, path, config))
-    if findings:
-        found.append(f"{findings} achado(s) no checar")
-    if snap.comment and check.text_findings(snap.comment, path, config):
+    # The pattern checks only run on text of a postable length, so they stay fast.
+    if len(snap.body) <= check.MAX_LENGTH:
+        findings = len(check.text_findings(snap.body, path, config))
+        if findings:
+            found.append(f"{findings} achado(s) no checar")
+    if len(snap.comment) > COMMENT_MAX_LENGTH:
+        found.append(f"primeiro comentário com mais de {COMMENT_MAX_LENGTH} caracteres")
+    elif snap.comment and check.text_findings(snap.comment, path, config):
         found.append("primeiro comentário com achado no checar")
+    if any(not plain(c) for c in (snap.body + snap.comment).replace("\n", "")):
+        found.append("caractere de controle no texto")
     if snap.image_name and not valid_image_name(snap.image_name):
         found.append("nome de imagem inválido")
     elif snap.image_name and snap.image is None:
@@ -217,6 +224,8 @@ def reconcile(
             events.append(("alterado", stem))
             if write and draft.group == "aprovado":
                 drafts.update(draft.path, {"status": "rascunho"})
+        elif ticked and current in state.published:
+            events.append(("ja_publicado", stem))
         elif ticked:
             state.approvals[stem] = current
             events.append(("aprovado", stem))
@@ -296,6 +305,7 @@ def _publish(
     drafts.update(draft.path, {"status": "publicado", "link": link})
     del state.publishing[stem]
     state.approvals.pop(stem, None)
+    state.published.add(snap.fingerprint)
     save_state(config.publish_state_file, state)
     events = [("publicado", stem, link)]
 

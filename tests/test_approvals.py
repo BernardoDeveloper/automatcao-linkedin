@@ -25,16 +25,16 @@ def status(path):
 def test_ticks_are_read_by_draft_stem():
     text = (
         "## Para revisar\n"
-        "- [x] [[2026-10-16 - Um]] · v:0123456789ab · 2026-10-20\n"
-        "- [ ] [[2026-10-16 - Dois]] · v:ba9876543210 · sem data\n"
+        "- [x] [[2026-10-16 - Um]] · v:0123456789abcdef0123456789abcdef · 2026-10-20\n"
+        "- [ ] [[2026-10-16 - Dois]] · v:fedcba9876543210fedcba9876543210 · sem data\n"
         "- [X] [[2026-10-16 - Três|apelido]]\n"
-        "- [x] [[2026-10-16 - Falso]] · publicar em x · v:0123456789ab\n"
+        "- [x] [[2026-10-16 - Falso]] · publicar em x · v:0123456789abcdef0123456789abcdef\n"
         "- [[2026-10-19 - Manual]] · marcar: Fulana\n"
         "texto solto [x] [[Nada]]\n"
     )
     assert review.ticks(text) == {
-        "2026-10-16 - Um": (True, "0123456789ab"),
-        "2026-10-16 - Dois": (False, "ba9876543210"),
+        "2026-10-16 - Um": (True, "0123456789abcdef0123456789abcdef"),
+        "2026-10-16 - Dois": (False, "fedcba9876543210fedcba9876543210"),
         "2026-10-16 - Três": (True, ""),
         "2026-10-16 - Falso": (True, ""),
     }
@@ -188,3 +188,35 @@ def test_state_round_trips(tmp_path):
     publishing.save_state(tmp_path / "e" / "s.json", state)
     assert publishing.load_state(tmp_path / "e" / "s.json") == state
     assert publishing.load_state(tmp_path / "nada.json") == publishing.State()
+
+
+def test_text_cannot_move_between_body_and_comment_unnoticed(make_config):
+    cfg = make_config()
+    a = write(cfg, "2026-10-16 - A", body="a\0b")
+    b = write(cfg, "2026-10-16 - B", body="a", extra="primeiro_comentario: b\0\n")
+    assert publishing.fingerprint(cfg, drafts.load(a)) != publishing.fingerprint(
+        cfg, drafts.load(b)
+    )
+
+
+def test_a_version_already_published_is_never_approved_again(make_config):
+    cfg = make_config()
+    path = write(cfg, "2026-10-16 - Um")
+    seen = yes(cfg, "2026-10-16 - Um")
+    state = publishing.State(published={publishing.fingerprint(cfg, drafts.load(path))})
+    assert publishing.reconcile(cfg, state, seen) == [("ja_publicado", "2026-10-16 - Um")]
+    assert state.approvals == {}
+
+
+def test_the_version_on_the_line_is_128_bits():
+    assert len(publishing.version("f" * 64)) == 32
+
+
+def test_symlinked_and_unreadable_drafts_are_left_out(make_config, tmp_path):
+    cfg = make_config()
+    write(cfg, "2026-10-16 - Um")
+    target = tmp_path / "fora.md"
+    target.write_text("---\nstatus: rascunho\n---\n## Post\n\nx\n", encoding="utf-8")
+    (cfg.drafts_dir / "2026-10-16 - Link.md").symlink_to(target)
+    (cfg.drafts_dir / "2026-10-16 - Binário.md").write_bytes(b"\xff\xfe---")
+    assert [d.path.stem for d in publishing.queue(cfg)] == ["2026-10-16 - Um"]

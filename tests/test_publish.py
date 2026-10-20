@@ -165,7 +165,7 @@ def test_blocked_drafts_are_not_published(make_config):
         (
             "bloqueado",
             "2026-10-16 - Longo",
-            "post com 3001 caracteres, máximo 3000; 1 achado(s) no checar",
+            "post com 3001 caracteres, máximo 3000",
         ),
         ("bloqueado", "2026-10-16 - Sem imagem", "falta a imagem"),
         ("bloqueado", "2026-10-16 - Vazado", "1 achado(s) no checar"),
@@ -277,3 +277,35 @@ def test_a_published_draft_with_a_leftover_approval_is_not_posted_again(make_con
     client = FakeClient()
     assert run(cfg, state, client) == []
     assert client.posts == []
+
+
+def test_a_huge_body_or_comment_is_blocked_quickly(make_config):
+    import time
+
+    cfg = make_config()
+    _, state = approved(
+        cfg, "2026-10-16 - Um", body="a" * 200_000, extra=f"primeiro_comentario: {'b' * 200_000}\n"
+    )
+    started = time.monotonic()
+    events = run(cfg, state, FakeClient())
+    assert time.monotonic() - started < 2
+    assert events[0][0] == "bloqueado"
+    assert "primeiro comentário com mais de 1250 caracteres" in events[0][2]
+
+
+def test_control_characters_in_the_text_block_the_post(make_config):
+    cfg = make_config()
+    _, state = approved(cfg, "2026-10-16 - Um", body="oi\u202eio")
+    events = run(cfg, state, FakeClient())
+    assert events == [("bloqueado", "2026-10-16 - Um", "caractere de controle no texto")]
+
+
+def test_a_symlinked_image_is_not_read(make_config, tmp_path):
+    cfg = make_config()
+    cfg.images_dir.mkdir(parents=True)
+    (tmp_path / "segredo.png").write_bytes(b"S")
+    (cfg.images_dir / "foto.png").symlink_to(tmp_path / "segredo.png")
+    _, state = approved(cfg, "2026-10-16 - Um", extra="imagem: foto.png\n")
+    client = FakeClient()
+    assert run(cfg, state, client) == [("bloqueado", "2026-10-16 - Um", "falta a imagem")]
+    assert client.images == []

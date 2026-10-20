@@ -31,7 +31,8 @@ read -r SECOND_BRAIN DRAFTS < <(cd "$REPO" && "$UV" run --quiet python -c \
 (cd "$REPO" && "$UV" run --quiet python -c '
 from linkedin_ia import config
 c = config.load()
-inside = [str(p) for p in (c.review_file, c.images_dir) if p.is_relative_to(c.drafts_dir)]
+drafts = c.drafts_dir.resolve()
+inside = [str(p) for p in (c.review_file, c.images_dir) if p.resolve().is_relative_to(drafts)]
 raise SystemExit(f"dentro da pasta de rascunhos: {inside}" if inside else 0)
 ')
 

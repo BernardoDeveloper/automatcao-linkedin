@@ -20,6 +20,7 @@ images in a folder; the only interruptions are desktop notifications. Supersedes
 - **R1.4** When the checkbox of an approved draft is unticked in the review file, the publisher shall drop its approval and set its status back to `rascunho`.
 - **R1.5** If an approved draft's fingerprint no longer matches its approval, or a ticked line shows an older version than the draft, then the publisher shall not approve it, shall drop any approval, set its status back to `rascunho` and notify that the draft changed.
 - **R1.6** If a draft has status `aprovado` without a recorded approval, then the publisher shall list it for review and shall not publish it.
+- **R1.9** If a ticked version was already published, then the publisher shall not approve it again and shall notify it.
 - **R1.7** Where a draft lists people in `mencoes`, the publisher shall list it under manual publishing and shall not publish it.
 - **R1.8** When a draft enters the review file for the first time, the publisher shall notify that a post awaits review.
 
@@ -29,7 +30,7 @@ images in a folder; the only interruptions are desktop notifications. Supersedes
 - **R2.2** When a post is published, the publisher shall set the draft's status to `publicado`, fill `link` with the post's URL and notify.
 - **R2.3** Where a published draft has `primeiro_comentario`, the publisher shall add it as a comment on the post.
 - **R2.4** If the first comment is rejected, then the publisher shall keep the draft as `publicado` and notify to add the comment by hand.
-- **R2.5** If an approved, due draft's post body or first comment fails the confidentiality check, it names an image that does not exist or is not a bare image file name, or its post body is empty or longer than 3000 characters, then the publisher shall not publish it and shall notify the reason once.
+- **R2.5** If an approved, due draft's post body or first comment fails the confidentiality check or holds a control character, it names an image that does not exist or is not a bare image file name, its post body is empty or longer than 3000 characters, or its first comment is longer than 1250 characters, then the publisher shall not publish it and shall notify the reason once.
 - **R2.6** The publisher shall send the post body in LinkedIn's commentary format, with reserved characters escaped and hashtags kept as hashtags.
 - **R2.7** If LinkedIn refuses a publish request with a 4xx status, then the publisher shall keep the draft approved, notify the status and retry on the next run.
 - **R2.8** If a publish request ends without an answer, with a 5xx status or with an unreadable answer, then the publisher shall not publish that draft again and shall notify to check LinkedIn by hand.

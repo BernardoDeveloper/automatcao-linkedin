@@ -154,3 +154,13 @@ def test_a_draft_whose_name_could_break_the_review_file_is_left_out(make_config)
 
 def test_ticks_split_lines_on_newline_only():
     assert review.ticks("- [ ] [[A]] \u2028- [x] [[B]]\n") == {"A": (False, "")}
+
+
+def test_the_preview_cannot_carry_markup(make_config):
+    cfg = make_config()
+    write(cfg, "2026-10-16 - Um", body="![](https://x/y.png) %%oculto%% <!-- [[Nota]] #tag")
+    text = section(review.render(cfg, publishing.State(), NOW), "Para revisar")
+    assert (
+        "“\\!\\[\\]\\(https://x/y.png\\) \\%\\%oculto\\%\\% \\<\\!-- \\[\\[Nota\\]\\] \\#tag”"
+        in text
+    )

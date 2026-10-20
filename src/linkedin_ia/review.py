@@ -8,7 +8,7 @@ from linkedin_ia import drafts, publishing
 from linkedin_ia.config import Config
 
 TICK = re.compile(
-    r"^\s*- \[([ xX])\] \[\[([^\]|]+)(?:\|[^\]]*)?\]\](?: · v:([0-9a-f]{12})(?= |$))?"
+    r"^\s*- \[([ xX])\] \[\[([^\]|]+)(?:\|[^\]]*)?\]\](?: · v:([0-9a-f]{32})(?= |$))?"
 )
 PREVIEW = 70
 
@@ -39,9 +39,14 @@ def _shown(config: Config, path: Path) -> str:
         return str(path)
 
 
+MARKUP = set("\\`*_[]()<>!%#|~=$&{}")
+
+
 def _quote(text: str) -> str:
+    """A preview Obsidian shows as plain text: no link, embed, comment or tag in it."""
     line = " ".join(_clean(text).split())
-    return f"“{line[:PREVIEW]}…”" if len(line) > PREVIEW else f"“{line}”"
+    cut = line[:PREVIEW] + ("…" if len(line) > PREVIEW else "")
+    return "“" + "".join(f"\\{c}" if c in MARKUP else c for c in cut) + "”"
 
 
 def _image(config: Config, draft: drafts.Draft) -> str:

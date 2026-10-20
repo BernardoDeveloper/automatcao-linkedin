@@ -22,8 +22,8 @@ New modules under `src/linkedin_ia/`:
 - `little.py` — `commentary(body)`: escapes `| { } @ [ ] ( ) < > # \ * _ ~` with a
   backslash and turns each `#Word` at a word start into `{hashtag|\#|Word}` (R2.6).
 - `review.py` — reads ticks (`- [x] [[<draft stem>]] · v:<version>`) and renders the
-  review file. A draft is keyed by its file stem; the version is the first 12 hex digits
-  of its fingerprint, anchored right after the wikilink so no value later on the line can
+  review file. A draft is keyed by its file stem; the version is the first 32 hex digits
+  (128 bits) of its fingerprint, anchored right after the wikilink so no value later on the line can
   forge it. Lines are split on `\n` only, and every value written on a line has control
   and line-separator characters replaced; drafts whose stem holds one, or `[ ] | # ^`,
   are left out.
@@ -84,12 +84,13 @@ State in `.estado/publicacao.json`:
 {
   "aprovacoes": {"<stem>": "<sha256>"},
   "publicando": {"<stem>": "<iso time the request started>"},
-  "avisados": ["<stem>:<reason>:<date or ''>"]
+  "avisados": ["<stem>:<reason>:<date or ''>"],
+  "publicados": ["<fingerprint of every published version>"]
 }
 ```
 
-The fingerprint is SHA-256 over the post body, the first comment, `publicar_em`, the
-image name and the image bytes, taken from one read of the draft (`publishing.snapshot`);
+The fingerprint is SHA-256 over the JSON list of post body, first comment,
+`publicar_em` and image name, then the image bytes, taken from one read of the draft (`publishing.snapshot`);
 the checks and the request use that same read. `imagem` must be a bare file name with an
 image extension. The images folder defaults outside the drafts folder, and the installer
 refuses a config that puts the images or the review file inside it.

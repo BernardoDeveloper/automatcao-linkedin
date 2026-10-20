@@ -100,4 +100,10 @@ def load(path: Path) -> Draft:
 def queue(config: Config) -> list[Draft]:
     if not config.drafts_dir.is_dir():
         return []
-    return [load(p) for p in sorted(config.drafts_dir.glob("*.md"))]
+    found = []
+    for path in sorted(config.drafts_dir.glob("*.md")):
+        try:
+            found.append(load(path))
+        except (UnicodeDecodeError, OSError):
+            continue
+    return found

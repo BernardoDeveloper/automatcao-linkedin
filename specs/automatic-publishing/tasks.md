@@ -10,7 +10,7 @@
 
 ## 2 · Review and publish
 
-- [x] 2.1 (TDD) Read ticks, record and drop approvals bound to a fingerprint — R1.3, R1.4, R1.5, R1.6
+- [x] 2.1 (TDD) Read ticks, record and drop approvals bound to a fingerprint — R1.3, R1.4, R1.5, R1.6, R1.9
 - [x] 2.2 (Unit) Render the review file — R1.1, R1.2, R1.7
   _Depends 2.1_
 - [x] 2.3 (TDD) Publish due approved drafts once, blocking failed checks and missing images, recording the link — R2.1, R2.2, R2.3, R2.4, R2.5, R2.7, R2.8

@@ -111,6 +111,8 @@ def _run(
         config, state, review.ticks(_review_text(config)), write
     ):
         out(f"{kind}: {stem}")
+        if kind == "ja_publicado":
+            once(None, f"{_title(stem)} já foi publicado com este texto: não publico de novo")
         if kind == "alterado":
             once(None, f"{_title(stem)} mudou e voltou para revisão: confira e marque de novo")
 

@@ -1,5 +1,6 @@
 """Desktop notifications through notify-send."""
 
+import html
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -13,5 +14,7 @@ def desktop(text: str) -> None:
     if command is None:
         return
     subprocess.run(
-        [command, "--app-name=linkedin", "--", "LinkedIn", text], check=False, timeout=10
+        [command, "--app-name=linkedin", "--", "LinkedIn", html.escape(text, quote=False)],
+        check=False,
+        timeout=10,
     )
