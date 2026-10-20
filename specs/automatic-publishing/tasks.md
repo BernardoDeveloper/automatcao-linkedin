@@ -23,4 +23,4 @@
 ## 3 · Wiring
 
 - [x] 3.1 (Unit) Install the hourly publish timer and run the publisher after the weekly drafts — R4.1
-- [ ] 3.2 (Unit) Teach the drafts skills and template the new frontmatter, drop the review task, document the flow — R1.7, R2.3
+- [x] 3.2 (Unit) Teach the drafts skills and template the new frontmatter, drop the review task, document the flow — R1.7, R2.3

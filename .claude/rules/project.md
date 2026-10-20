@@ -1,8 +1,9 @@
 # This project
 
 `linkedin` CLI (Python, stdlib only) plus two Claude Code skills that write LinkedIn
-drafts into the second brain. Drafts only, never published from here
-(docs/adr/0001-drafts-only-no-linkedin-api.md).
+drafts into the second brain. Drafts Bernardo approves in the review file are published
+through the LinkedIn API by `linkedin publicar`
+(docs/adr/0003-publish-approved-drafts-through-the-linkedin-api.md).
 
 ## Commands
 
@@ -37,5 +38,7 @@ uv run ruff format .
 
 - `config.toml`, `dossies/` and `.estado/` hold personal data and are gitignored. Only
   `config.example.toml` is committed.
-- The second brain is the user's: the skills only add drafts under its LinkedIn folder
-  and one task line in `TAREFAS.md`.
+- The second brain is the user's: the skills only add drafts under its LinkedIn folder;
+  `linkedin publicar` only writes the review file and a draft's `status` and `link`.
+- The LinkedIn token lives in `~/.config/linkedin-ia/token.json` (0600), never in this
+  repository, a draft or a log. Tests never call LinkedIn: the transport is injected.
